@@ -1,0 +1,9 @@
+{
+  "name": "Alan's United Quotation App",
+  "short_name": "AU Quotation",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111827",
+  "description": "Online and offline quotation generator for Alan's United."
+}
