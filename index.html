@@ -20,11 +20,11 @@ button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:point
 .table-head,.line-item{display:grid;grid-template-columns:16mm 1fr 31mm 31mm;column-gap:3mm;align-items:start}
 .table-head{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2.3mm 1mm;border-top:1px solid #333;border-bottom:1px solid #bbb}
 .section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:5mm;padding:0 1mm 1.5mm}
-.line-item{font-size:10.5px;padding:2mm 1mm;border-bottom:1px solid #eee} .num{text-align:right;white-space:nowrap}
+.line-item{font-size:10.5px;padding:2mm 1mm;border-bottom:1px solid #eee}.num{text-align:right;white-space:nowrap}.section-subtotal{display:grid;grid-template-columns:1fr 31mm;gap:3mm;font-size:10.5px;font-weight:700;padding:2mm 1mm 3mm;border-top:1px solid #bbb;margin-top:1mm}.section-summary{margin-top:9mm;border-top:1px solid #222}.summary-head,.summary-row{display:grid;grid-template-columns:1fr 36mm;gap:4mm;padding:2mm 2mm}.summary-head{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #bbb}.summary-row{font-size:10.5px;border-bottom:1px solid #eee}.summary-total{font-weight:700;border-top:1px solid #333}
 .totals{width:72mm;margin:8mm 0 0 auto;font-size:11px} .total-row{display:grid;grid-template-columns:1fr 30mm;padding:1.8mm 3mm;border-bottom:1px solid #ddd} .grand{font-weight:700;font-size:12px;border-top:1px solid #222;border-bottom:3px double #222}
 .notes{margin-top:14mm;font-size:9.5px;line-height:1.6} .empty{color:#aaa;font-style:italic}
 @media(max-width:1100px){.app{grid-template-columns:1fr}.editor{height:auto;position:relative}.preview-wrap{padding:10px;overflow:auto}}
-@media print{.section-title{break-after:avoid}.line-item{break-inside:avoid}.totals{break-inside:avoid}body{background:#fff}.editor{display:none}.app{display:block}.preview-wrap{padding:0}.paper{box-shadow:none;margin:0;width:210mm;min-height:297mm;page-break-after:always} @page{size:A4;margin:0}}
+@media print{.section-title{break-after:avoid}.line-item,.section-subtotal,.section-summary,.totals{break-inside:avoid}body{background:#fff}.editor{display:none}.app{display:block}.preview-wrap{padding:0}.paper{box-shadow:none;margin:0;width:210mm;min-height:297mm;page-break-after:always} @page{size:A4;margin:0}}
 </style><meta name="theme-color" content="#111827">
 <link rel="manifest" href="manifest.webmanifest">
 </head><body><div class="app">
@@ -51,34 +51,16 @@ button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:point
 <div><div class="meta-line"><span class="meta-label">Date</span><span id="pDate"></span></div><div class="meta-line"><span class="meta-label">Mileage</span><span id="pMileage"></span></div></div>
 </div>
 <div class="table-head"><div>Qty</div><div>Description</div><div class="num">Unit Price</div><div class="num">Amount</div></div>
-<div id="pSections"></div><div class="totals"><div class="total-row"><b>Subtotal</b><span class="num" id="subtotal"></span></div><div class="total-row" id="gstRow"><span id="gstLabel">GST (9%)</span><span class="num" id="gst"></span></div><div class="total-row grand"><span>GRAND TOTAL</span><span class="num" id="grand"></span></div></div>
+<div id="pSections"></div><div id="sectionSummary" class="section-summary"></div><div class="totals"><div class="total-row"><b>Subtotal</b><span class="num" id="subtotal"></span></div><div class="total-row" id="gstRow"><span id="gstLabel">GST (9%)</span><span class="num" id="gst"></span></div><div class="total-row grand"><span>GRAND TOTAL</span><span class="num" id="grand"></span></div></div>
 <div class="notes">Quotation valid for 7 days.<br>Ad hoc items may be required.</div>
 </div></div></div>
 <script>
 const sections=[]; const $=id=>document.getElementById(id); const money=n=>(n===null||n===undefined||n==='')?'':Number(n).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
 function addSection(title='SUSPENSION REPAIR',items){sections.push({title,items:items||[{qty:2,desc:'Front Shock Absorbers (LH & RH)',price:265},{qty:2,desc:'Front Top Mount (LH & RH)',price:105}]});renderEditor();update();}
-function addItem(si){
-  const items=sections[si].items;
-  const previousQty=items.length ? (items[items.length-1].qty ?? 1) : 1;
-  items.push({qty:previousQty,desc:'',price:''});
-  renderEditor();
-  update();
-  focusItem(si,items.length-1);
-}
-function addItemAfter(si,ii){
-  const previousQty=sections[si].items[ii]?.qty ?? 1;
-  sections[si].items.splice(ii+1,0,{qty:previousQty,desc:'',price:''});
-  renderEditor();
-  update();
-  focusItem(si,ii+1);
-}
+function addItem(si){const items=sections[si].items;const previousQty=items.length ? (items[items.length-1].qty ?? 1) : 1;items.push({qty:previousQty,desc:'',price:''});renderEditor();update();focusItem(si,items.length-1);}
+function addItemAfter(si,ii){const previousQty=sections[si].items[ii]?.qty ?? 1;sections[si].items.splice(ii+1,0,{qty:previousQty,desc:'',price:''});renderEditor();update();focusItem(si,ii+1);}
 function focusItem(si,ii){requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-desc="${si}-${ii}"]`);if(el){el.focus();el.select();}});}
-function itemKeydown(e,si,ii){
-  if((e.key==='Enter'||e.key==='Tab') && !e.shiftKey){
-    e.preventDefault();
-    addItemAfter(si,ii);
-  }
-}
+function itemKeydown(e,si,ii){if((e.key==='Enter'||e.key==='Tab') && !e.shiftKey){e.preventDefault();addItemAfter(si,ii);}}
 function removeSection(i){sections.splice(i,1);renderEditor();update();} function removeItem(si,ii){sections[si].items.splice(ii,1);renderEditor();update();}
 function renderEditor(){$('sections').innerHTML=sections.map((s,si)=>`<div class="section-card"><div class="section-head"><input value="${esc(s.title)}" oninput="sections[${si}].title=this.value;update()"><button class="danger" onclick="removeSection(${si})">×</button></div>${s.items.map((it,ii)=>`<div class="item-row"><input type="number" min="0" step="1" value="${it.qty}" oninput="sections[${si}].items[${ii}].qty=this.value;update()"><input data-item-desc="${si}-${ii}" value="${esc(it.desc)}" placeholder="Description" oninput="sections[${si}].items[${ii}].desc=this.value;update()"><input type="number" min="0" step="0.01" value="${it.price}" oninput="sections[${si}].items[${ii}].price=this.value;update()" onkeydown="itemKeydown(event,${si},${ii})" title="Press Enter or Tab to add a new item"><button class="danger" onclick="removeItem(${si},${ii})">×</button></div>`).join('')}<button class="secondary" style="margin-top:8px" onclick="addItem(${si})">+ Item</button></div>`).join('')}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -86,75 +68,47 @@ function update(){
 const showHeader=$('useHeader').checked;
 $('headerImage').style.display=showHeader?'block':'none';
 $('paper').classList.toggle('no-header',!showHeader);
-['customer','vehicle','model','mileage'].forEach(k=>{$('p'+k[0].toUpperCase()+k.slice(1)).textContent=$(k).value}); let d=$('date').value; $('pDate').textContent=d?new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
-let sub=0,hasAmount=false; $('pSections').innerHTML=sections.map(s=>`<div class="section-title">${esc(s.title)}</div>${s.items.map(it=>{const hasQty=it.qty!==''&&it.qty!=null;const hasPrice=it.price!==''&&it.price!=null;let a='';if(hasQty&&hasPrice){a=(+it.qty||0)*(+it.price||0);sub+=a;hasAmount=true}return `<div class="line-item"><div>${esc(it.qty)}</div><div>${esc(it.desc)}</div><div class="num">${money(it.price)}</div><div class="num">${money(a)}</div></div>`}).join('')}`).join(''); const includeGst=$('includeGst').checked;const rate=9,gst=hasAmount&&includeGst?sub*rate/100:'';$('subtotal').textContent=hasAmount?'S$ '+money(sub):'';$('gst').textContent=hasAmount&&includeGst?'S$ '+money(gst):'';$('grand').textContent=hasAmount?'S$ '+money(sub+(includeGst?Number(gst):0)):'';$('gstRow').style.display=includeGst?'grid':'none';$('gstLabel').textContent='GST (9%)';autoSave();}
-
-function newQuotation(){
-  if(!confirm('Clear the current quotation and start a new one?')) return;
-  $('customer').value=''; $('vehicle').value=''; $('mileage').value=''; $('model').value='';
-  $('date').value=new Date().toISOString().slice(0,10);$('includeGst').checked=true;
-  sections.splice(0,sections.length,{title:'REPAIR / SERVICE',items:[{qty:1,desc:'',price:''}]});
-  renderEditor(); update();
+['customer','vehicle','model','mileage'].forEach(k=>{$('p'+k[0].toUpperCase()+k.slice(1)).textContent=$(k).value});
+let d=$('date').value;
+$('pDate').textContent=d?new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
+let sub=0,hasAmount=false;
+const sectionTotals=[];
+$('pSections').innerHTML=sections.map(s=>{
+  let sectionTotal=0,sectionHasAmount=false;
+  const rows=s.items.map(it=>{
+    const hasQty=it.qty!==''&&it.qty!=null;
+    const hasPrice=it.price!==''&&it.price!=null;
+    let a='';
+    if(hasQty&&hasPrice){a=(+it.qty||0)*(+it.price||0);sectionTotal+=a;sub+=a;sectionHasAmount=true;hasAmount=true;}
+    return `<div class="line-item"><div>${esc(it.qty)}</div><div>${esc(it.desc)}</div><div class="num">${money(it.price)}</div><div class="num">${money(a)}</div></div>`;
+  }).join('');
+  sectionTotals.push({title:s.title,total:sectionTotal,hasAmount:sectionHasAmount});
+  const subtotalRow=sectionHasAmount?`<div class="section-subtotal"><div>SECTION TOTAL — ${esc(s.title)}</div><div class="num">S$ ${money(sectionTotal)}</div></div>`:'';
+  return `<div class="section-title">${esc(s.title)}</div>${rows}${subtotalRow}`;
+}).join('');
+const summaryRows=sectionTotals.filter(x=>x.hasAmount).map(x=>`<div class="summary-row"><div>${esc(x.title)}</div><div class="num">S$ ${money(x.total)}</div></div>`).join('');
+$('sectionSummary').innerHTML=summaryRows?`<div class="summary-head"><div>Section Summary</div><div class="num">Amount</div></div>${summaryRows}<div class="summary-row summary-total"><div>TOTAL OF ALL SECTIONS</div><div class="num">S$ ${money(sub)}</div></div>`:'';
+const includeGst=$('includeGst').checked;
+const rate=9,gst=hasAmount&&includeGst?sub*rate/100:'';
+$('subtotal').textContent=hasAmount?'S$ '+money(sub):'';
+$('gst').textContent=hasAmount&&includeGst?'S$ '+money(gst):'';
+$('grand').textContent=hasAmount?'S$ '+money(sub+(includeGst?Number(gst):0)):'';
+$('gstRow').style.display=includeGst?'grid':'none';
+$('gstLabel').textContent='GST (9%)';
+autoSave();
 }
-
+function newQuotation(){if(!confirm('Clear the current quotation and start a new one?')) return;$('customer').value=''; $('vehicle').value=''; $('mileage').value=''; $('model').value='';$('date').value=new Date().toISOString().slice(0,10);$('includeGst').checked=true;sections.splice(0,sections.length,{title:'REPAIR / SERVICE',items:[{qty:1,desc:'',price:''}]});renderEditor(); update();}
 function collect(){return {customer:$('customer').value,date:$('date').value,vehicle:$('vehicle').value,mileage:$('mileage').value,model:$('model').value,useHeader:$('useHeader').checked,includeGst:$('includeGst').checked,sections}}
 function safeName(v){return String(v||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'');}
-function baseFileName(){
-  const customer=safeName($('customer').value)||'Customer';
-  const vehicle=safeName($('vehicle').value)||'Vehicle';
-  return `${customer}_${vehicle}`;
-}
-function saveData(){
-  let blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'}),a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=baseFileName()+'.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function printPdf(){
-  const oldTitle=document.title;
-  document.title=baseFileName();
-  window.print();
-  setTimeout(()=>document.title=oldTitle,1000);
-}
-function autoSave(){
-  try{localStorage.setItem('alans_united_quotation_autosave',JSON.stringify(collect()));}catch(e){}
-}
-function restoreAutoSave(){
-  try{
-    const raw=localStorage.getItem('alans_united_quotation_autosave');
-    if(!raw)return false;
-    const d=JSON.parse(raw);
-    ['customer','date','vehicle','mileage','model'].forEach(k=>{if(d[k]!=null)$(k).value=d[k]});
-    if(d.useHeader!=null)$('useHeader').checked=!!d.useHeader;
-    if(d.includeGst!=null)$('includeGst').checked=!!d.includeGst;
-    sections.splice(0,sections.length,...(d.sections||[]));
-    renderEditor();update();return true;
-  }catch(e){return false;}
-}
+function baseFileName(){const customer=safeName($('customer').value)||'Customer';const vehicle=safeName($('vehicle').value)||'Vehicle';return `${customer}_${vehicle}`;}
+function saveData(){let blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href);}
+function printPdf(){const oldTitle=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=oldTitle,1000);}
+function autoSave(){try{localStorage.setItem('alans_united_quotation_autosave',JSON.stringify(collect()));}catch(e){}}
+function restoreAutoSave(){try{const raw=localStorage.getItem('alans_united_quotation_autosave');if(!raw)return false;const d=JSON.parse(raw);['customer','date','vehicle','mileage','model'].forEach(k=>{if(d[k]!=null)$(k).value=d[k]});if(d.useHeader!=null)$('useHeader').checked=!!d.useHeader;if(d.includeGst!=null)$('includeGst').checked=!!d.includeGst;sections.splice(0,sections.length,...(d.sections||[]));renderEditor();update();return true;}catch(e){return false;}}
 $('loadFile').addEventListener('change',e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{let d=JSON.parse(r.result);['customer','date','vehicle','mileage','model'].forEach(k=>{if(d[k]!=null)$(k).value=d[k]});if(d.useHeader!=null)$('useHeader').checked=!!d.useHeader;if(d.includeGst!=null)$('includeGst').checked=!!d.includeGst;sections.splice(0,sections.length,...(d.sections||[]));renderEditor();update()};r.readAsText(f)});
 ['customer','date','vehicle','mileage','model'].forEach(k=>$(k).addEventListener('input',update));$('useHeader').addEventListener('change',update);$('includeGst').addEventListener('change',update);
-document.addEventListener('keydown',e=>{
-  if(!(e.ctrlKey||e.metaKey))return;
-  const k=e.key.toLowerCase();
-  if(k==='s'){e.preventDefault();saveData();}
-  if(k==='n'){e.preventDefault();newQuotation();}
-  if(k==='p'){e.preventDefault();printPdf();}
-});
-$('customer').value='';
-$('vehicle').value='';
-$('mileage').value='';
-$('model').value='';
-$('date').value=new Date().toISOString().slice(0,10);
-sections.splice(0,sections.length,{title:'REPAIR / SERVICE',items:[{qty:1,desc:'',price:''}]});
-renderEditor();
-update();
-requestAnimationFrame(()=>$('customer').focus());
-
-Promise.all([1,2,3,4].map(i=>fetch(`header_${i}.txt`).then(r=>r.text())))
-  .then(parts=>$('headerImage').src='data:image/jpeg;base64,'+parts.join(''))
-  .catch(()=>{});
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
-}
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='s'){e.preventDefault();saveData();}if(k==='n'){e.preventDefault();newQuotation();}if(k==='p'){e.preventDefault();printPdf();}});
+$('customer').value='';$('vehicle').value='';$('mileage').value='';$('model').value='';$('date').value=new Date().toISOString().slice(0,10);sections.splice(0,sections.length,{title:'REPAIR / SERVICE',items:[{qty:1,desc:'',price:''}]});renderEditor();update();requestAnimationFrame(()=>$('customer').focus());
+Promise.all([1,2,3,4].map(i=>fetch(`header_${i}.txt`).then(r=>r.text()))).then(parts=>$('headerImage').src='data:image/jpeg;base64,'+parts.join('')).catch(()=>{});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
 </script></body></html>
