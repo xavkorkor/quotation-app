@@ -11,13 +11,14 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef1f4;color:#1
 .editor{background:#fff;border-right:1px solid #ddd;padding:22px;height:100vh;overflow:auto;position:sticky;top:0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 label{display:block;font-size:12px;font-weight:700;color:#444;margin-bottom:4px}
-input{width:100%;border:1px solid #cfd3d8;border-radius:8px;padding:9px;font:inherit;background:#fff}
+input,select{width:100%;border:1px solid #cfd3d8;border-radius:8px;padding:9px;font:inherit;background:#fff}
 .option-card{margin-top:14px;padding:11px 12px;border:1px solid #d7dce2;border-radius:10px;background:#f8fafc}
 .option-card label{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13px}
 .option-card label:last-child{margin-bottom:0}
 .option-card input[type=checkbox]{width:17px;height:17px}
 .discount-control{margin-top:12px;padding-top:10px;border-top:1px solid #e1e5ea}
-.discount-control label{display:block;margin:0 0 4px;font-size:12px}
+.discount-control>label{display:block;margin:0 0 4px;font-size:12px}
+.discount-fields{display:grid;grid-template-columns:110px 1fr;gap:8px}
 h2{font-size:14px;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.08em}
 .section-card{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0;background:#fafafa}
 .section-head{display:grid;grid-template-columns:1fr 34px;gap:6px}
@@ -81,7 +82,13 @@ body{background:#fff}
 <label><input id="useHeader" type="checkbox" checked> Use original Alan's United header</label>
 <label><input id="includeGst" type="checkbox" checked> Include GST (9%)</label>
 <label><input id="showSectionSummary" type="checkbox"> Show section summary</label>
-<div class="discount-control"><label for="discount">Discount (S$) — optional</label><input id="discount" type="number" min="0" step="0.01" placeholder="Leave blank for no discount"></div>
+<div class="discount-control">
+<label for="discount">Discount — optional</label>
+<div class="discount-fields">
+<select id="discountType" aria-label="Discount type"><option value="percent">Percentage (%)</option><option value="dollar">Dollar (S$)</option></select>
+<input id="discount" type="number" min="0" step="0.01" placeholder="Leave blank for no discount">
+</div>
+</div>
 </div>
 <h2>Quotation Sections</h2>
 <div class="hint">Press Enter or Tab after Unit Price to add the next item automatically.</div>
@@ -119,7 +126,7 @@ body{background:#fff}
 <div id="sectionSummary" class="section-summary"></div>
 <div class="totals">
 <div class="total-row"><b>Subtotal</b><span class="num" id="subtotal"></span></div>
-<div class="total-row" id="discountRow" style="display:none"><span>Discount</span><span class="num" id="discountAmount"></span></div>
+<div class="total-row" id="discountRow" style="display:none"><span id="discountLabel">Discount</span><span class="num" id="discountAmount"></span></div>
 <div class="total-row" id="gstRow"><span>GST (9%)</span><span class="num" id="gst"></span></div>
 <div class="total-row grand"><span>GRAND TOTAL</span><span class="num" id="grand"></span></div>
 </div>
@@ -216,10 +223,14 @@ const summaryRows=sectionTotals.filter(x=>x.hasAmount).map(x=>`<div class="summa
 sectionSummary.innerHTML=showSectionSummary.checked&&summaryRows?`<div class="summary-head"><div>Section Summary</div><div class="num">Amount</div></div>${summaryRows}<div class="summary-row summary-total"><div>TOTAL OF ALL SECTIONS</div><div class="num">S$ ${money(subtotalValue)}</div></div>`:'';
 
 const enteredDiscount=discount.value===''?0:Math.max(0,Number(discount.value)||0);
-const discountValue=hasAny?Math.min(enteredDiscount,subtotalValue):0;
+const isPercent=discountType.value==='percent';
+const safePercent=Math.min(100,enteredDiscount);
+const rawDiscount=isPercent?subtotalValue*(safePercent/100):enteredDiscount;
+const discountValue=hasAny?Math.min(rawDiscount,subtotalValue):0;
 const taxableValue=Math.max(0,subtotalValue-discountValue);
 const gstValue=hasAny&&includeGst.checked?taxableValue*.09:'';
 subtotal.textContent=hasAny?'S$ '+money(subtotalValue):'';
+discountLabel.textContent=isPercent&&discountValue>0?`Discount (${money(safePercent).replace('.00','')}%)`:'Discount';
 discountAmount.textContent=discountValue>0?'- S$ '+money(discountValue):'';
 discountRow.style.display=discountValue>0?'grid':'none';
 gst.textContent=hasAny&&includeGst.checked?'S$ '+money(gstValue):'';
@@ -227,22 +238,23 @@ grand.textContent=hasAny?'S$ '+money(taxableValue+(includeGst.checked?Number(gst
 gstRow.style.display=includeGst.checked?'grid':'none';
 }
 
-function collect(){return {customer:customer.value,date:date.value,vehicle:vehicle.value,mileage:mileage.value,model:model.value,useHeader:useHeader.checked,includeGst:includeGst.checked,showSectionSummary:showSectionSummary.checked,discount:discount.value,sections}}
+function collect(){return {customer:customer.value,date:date.value,vehicle:vehicle.value,mileage:mileage.value,model:model.value,useHeader:useHeader.checked,includeGst:includeGst.checked,showSectionSummary:showSectionSummary.checked,discountType:discountType.value,discount:discount.value,sections}}
 function safeName(v){return String(v||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'')}
 function fileDate(){const d=date.value||new Date().toISOString().slice(0,10);const [y,m,day]=d.split('-');return `${day}-${m}-${y}`}
 function baseFileName(){return `${safeName(customer.value)||'Customer'}_${safeName(vehicle.value)||'Vehicle'}_${fileDate()}`}
 function saveData(){rememberCurrent();const blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href)}
 function printPdf(){rememberCurrent();const old=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=old,1000)}
 function duplicateQuotation(){rememberCurrent();date.value=new Date().toISOString().slice(0,10);update();requestAnimationFrame(()=>customer.focus())}
-function newQuotation(){if(!confirm('Clear the current quotation and start a new one?'))return;customer.value='';vehicle.value='';mileage.value='';model.value='';discount.value='';date.value=new Date().toISOString().slice(0,10);useHeader.checked=true;includeGst.checked=true;showSectionSummary.checked=false;sections.splice(0,sections.length,blankSection());renderEditor();update();requestAnimationFrame(()=>customer.focus())}
+function newQuotation(){if(!confirm('Clear the current quotation and start a new one?'))return;customer.value='';vehicle.value='';mileage.value='';model.value='';discount.value='';discountType.value='percent';date.value=new Date().toISOString().slice(0,10);useHeader.checked=true;includeGst.checked=true;showSectionSummary.checked=false;sections.splice(0,sections.length,blankSection());renderEditor();update();requestAnimationFrame(()=>customer.focus())}
 
-loadFile.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);customer.value=d.customer||'';date.value=d.date||new Date().toISOString().slice(0,10);vehicle.value=d.vehicle||'';mileage.value=d.mileage||'';model.value=d.model||'';discount.value=d.discount??'';useHeader.checked=d.useHeader!==false;includeGst.checked=d.includeGst!==false;showSectionSummary.checked=!!d.showSectionSummary;sections.splice(0,sections.length,...(d.sections?.length?d.sections:[blankSection()]));renderEditor();update();}catch{alert('Unable to open quotation file.')}};r.readAsText(f);e.target.value='';});
+loadFile.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);customer.value=d.customer||'';date.value=d.date||new Date().toISOString().slice(0,10);vehicle.value=d.vehicle||'';mileage.value=d.mileage||'';model.value=d.model||'';discount.value=d.discount??'';discountType.value=d.discountType||'dollar';useHeader.checked=d.useHeader!==false;includeGst.checked=d.includeGst!==false;showSectionSummary.checked=!!d.showSectionSummary;sections.splice(0,sections.length,...(d.sections?.length?d.sections:[blankSection()]));renderEditor();update();}catch{alert('Unable to open quotation file.')}};r.readAsText(f);e.target.value='';});
 [customer,date,vehicle,mileage,model,discount].forEach(el=>el.addEventListener('input',update));vehicle.addEventListener('change',applyVehicleMemory);vehicle.addEventListener('blur',applyVehicleMemory);
-[useHeader,includeGst,showSectionSummary].forEach(el=>el.addEventListener('change',update));
+[useHeader,includeGst,showSectionSummary,discountType].forEach(el=>el.addEventListener('change',update));
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='n'){e.preventDefault();newQuotation()}if(k==='s'){e.preventDefault();saveData()}if(k==='p'){e.preventDefault();printPdf()}});
 
 const sectionsEl=$('sections');
 date.value=new Date().toISOString().slice(0,10);
+discountType.value='percent';
 discount.value='';
 sections.push(blankSection());
 renderEditor();refreshSuggestions();update();
