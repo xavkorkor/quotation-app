@@ -26,13 +26,11 @@ button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:point
 .danger{background:#fee2e2;color:#991b1b}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .hint{font-size:12px;color:#667085;margin:-5px 0 10px}
+.suggest-note{font-size:11px;color:#667085;margin-top:4px}
+.section-actions{display:flex;gap:5px;align-items:center}.section-actions button{padding:7px 9px}
 .preview-wrap{padding:28px;overflow:auto}
 .paper{width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-shadow:0 8px 28px rgba(0,0,0,.15);padding:0 18mm 16mm}
-.letterhead{display:block;text-align:center;padding:7mm 0 5mm;margin:0 auto 2mm;color:#111;line-height:1.08}
-.letterhead-name{font-family:Georgia,"Times New Roman",serif;font-size:27px;font-weight:900;letter-spacing:.02em;text-transform:uppercase;margin-bottom:1.2mm}
-.letterhead-line{font-size:11px;letter-spacing:.01em;margin:.55mm 0}
-.letterhead-reg{font-size:10.7px;margin:.55mm 0}
-.letterhead-gst{font-size:11px;font-weight:700;margin-top:.7mm}
+.company-header{text-align:center;margin:8mm auto 5mm;line-height:1.05}.company-name{font-family:Georgia,'Times New Roman',serif;font-weight:900;font-size:28px;letter-spacing:.2px;white-space:nowrap}.company-sub{font-size:12px;line-height:1.15}.company-gst{font-size:12px;font-weight:700;line-height:1.15}
 .paper.no-header{padding-top:18mm}
 .quote-title{text-align:center;font-size:21px;font-weight:700;letter-spacing:.28em;margin:0 0 8mm;padding-left:.28em}
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:4mm 16mm;margin:0 4mm 7mm;font-size:11.5px}
@@ -71,9 +69,9 @@ body{background:#fff}
 <div class="app">
 <div class="editor">
 <div class="grid">
-<div><label>Customer Name</label><input id="customer"></div>
+<div><label>Customer Name</label><input id="customer" list="customerList" autocomplete="off"><datalist id="customerList"></datalist></div>
 <div><label>Date</label><input id="date" type="date"></div>
-<div><label>Vehicle No.</label><input id="vehicle"></div>
+<div><label>Vehicle No.</label><input id="vehicle" list="vehicleList" autocomplete="off"><datalist id="vehicleList"></datalist><div class="suggest-note">Known vehicles can auto-fill customer/model details.</div></div>
 <div><label>Mileage</label><input id="mileage"></div>
 <div style="grid-column:1/-1"><label>Model / Type</label><input id="model"></div>
 </div>
@@ -84,10 +82,11 @@ body{background:#fff}
 </div>
 <h2>Quotation Sections</h2>
 <div class="hint">Press Enter or Tab after Unit Price to add the next item automatically.</div>
-<div id="sections"></div>
+<div id="sections"></div><datalist id="itemLibrary"></datalist>
 <div class="toolbar">
 <button class="secondary" onclick="addSection()">+ Add Section</button>
 <button class="secondary" onclick="newQuotation()">New / Clear</button>
+<button class="secondary" onclick="duplicateQuotation()">Duplicate Quotation</button>
 <button class="primary" onclick="printPdf()">Print / Save PDF</button>
 </div>
 <div class="toolbar">
@@ -99,13 +98,7 @@ body{background:#fff}
 
 <div class="preview-wrap">
 <div class="paper" id="paper">
-<div id="headerBlock" class="letterhead">
-  <div class="letterhead-name">ALAN'S UNITED AUTO PTE. LTD.</div>
-  <div class="letterhead-line">Block 7, Sin Ming Industrial Estate, #01-76, Singapore 575642.</div>
-  <div class="letterhead-line">Tel: 6453 8686 (3 Lines)&nbsp;&nbsp;&nbsp; Fax: 6459 6550</div>
-  <div class="letterhead-reg">Company Reg. No.: 201113667N</div>
-  <div class="letterhead-gst">GST Reg. No.: 201113667N</div>
-</div>
+<div id="headerImage" class="company-header"><div class="company-name">ALAN'S UNITED AUTO PTE. LTD.</div><div class="company-sub">Block 7, Sin Ming Industrial Estate, #01-76, Singapore 575642.</div><div class="company-sub">Tel: 6453 8686 (3 Lines)&nbsp;&nbsp;&nbsp;&nbsp;Fax: 6459 6550</div><div class="company-sub">Company Reg. No.: 201113667N</div><div class="company-gst">GST Reg. No.: 201113667N</div></div>
 <div class="quote-title">QUOTATION</div>
 <div class="meta">
 <div>
@@ -134,12 +127,44 @@ body{background:#fff}
 <script>
 const $=id=>document.getElementById(id);
 const sections=[];
+const MEMORY_KEY='au_quotation_memory_v1';
+function getMemory(){try{return JSON.parse(localStorage.getItem(MEMORY_KEY)||'{"vehicles":{},"items":{}}')}catch{return {vehicles:{},items:{}}}}
+function setMemory(m){try{localStorage.setItem(MEMORY_KEY,JSON.stringify(m))}catch{}}
+function rememberCurrent(){
+  const m=getMemory();
+  const plate=vehicle.value.trim().toUpperCase();
+  if(plate)m.vehicles[plate]={customer:customer.value.trim(),model:model.value.trim(),mileage:mileage.value.trim()};
+  sections.forEach(s=>s.items.forEach(it=>{
+    const d=String(it.desc||'').trim();
+    if(d)m.items[d.toLowerCase()]={desc:d,price:it.price===''?'':it.price};
+  }));
+  setMemory(m);refreshSuggestions();
+}
+function refreshSuggestions(){
+  const m=getMemory();
+  vehicleList.innerHTML=Object.keys(m.vehicles).sort().map(v=>`<option value="${esc(v)}"></option>`).join('');
+  const names=[...new Set(Object.values(m.vehicles).map(v=>v.customer).filter(Boolean))].sort();
+  customerList.innerHTML=names.map(v=>`<option value="${esc(v)}"></option>`).join('');
+  itemLibrary.innerHTML=Object.values(m.items).sort((a,b)=>a.desc.localeCompare(b.desc)).map(x=>`<option value="${esc(x.desc)}">${x.price!==''?'Last: S$ '+money(x.price):''}</option>`).join('');
+}
+function applyVehicleMemory(){
+  const plate=vehicle.value.trim().toUpperCase();if(!plate)return;vehicle.value=plate;
+  const saved=getMemory().vehicles[plate];
+  if(saved){if(!customer.value)customer.value=saved.customer||'';if(!model.value)model.value=saved.model||'';if(!mileage.value)mileage.value=saved.mileage||'';update();}
+}
+function suggestItem(si,ii){
+  const it=sections[si].items[ii];
+  const saved=getMemory().items[String(it.desc||'').trim().toLowerCase()];
+  if(saved&&(it.price===''||it.price==null)){it.price=saved.price;renderEditor();update();requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-price="${si}-${ii}"]`);if(el)el.focus()});}
+}
 const money=n=>(n===null||n===undefined||n==='')?'':Number(n).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function blankSection(title='REPAIR / SERVICE'){return {title,items:[{qty:1,desc:'',price:''}]}}
 function addSection(title='REPAIR / SERVICE',items=null){sections.push({title,items:items||[{qty:1,desc:'',price:''}]});renderEditor();update();}
 function removeSection(i){sections.splice(i,1);if(!sections.length)sections.push(blankSection());renderEditor();update();}
+function duplicateSection(i){sections.splice(i+1,0,JSON.parse(JSON.stringify(sections[i])));renderEditor();update();}
+function moveSection(i,dir){const j=i+dir;if(j<0||j>=sections.length)return;[sections[i],sections[j]]=[sections[j],sections[i]];renderEditor();update();}
 function addItem(si){const items=sections[si].items;const qty=items.length?(items[items.length-1].qty??1):1;items.push({qty,desc:'',price:''});renderEditor();update();focusItem(si,items.length-1);}
 function addItemAfter(si,ii){const qty=sections[si].items[ii]?.qty??1;sections[si].items.splice(ii+1,0,{qty,desc:'',price:''});renderEditor();update();focusItem(si,ii+1);}
 function removeItem(si,ii){sections[si].items.splice(ii,1);if(!sections[si].items.length)sections[si].items.push({qty:1,desc:'',price:''});renderEditor();update();}
@@ -148,18 +173,18 @@ function itemKeydown(e,si,ii){if((e.key==='Enter'||e.key==='Tab')&&!e.shiftKey){
 
 function renderEditor(){
 sectionsEl.innerHTML=sections.map((s,si)=>`<div class="section-card">
-<div class="section-head"><input value="${esc(s.title)}" oninput="sections[${si}].title=this.value;update()"><button class="danger" onclick="removeSection(${si})">×</button></div>
+<div class="section-head"><input value="${esc(s.title)}" oninput="sections[${si}].title=this.value;update()"><div class="section-actions"><button class="secondary" title="Move up" onclick="moveSection(${si},-1)">↑</button><button class="secondary" title="Move down" onclick="moveSection(${si},1)">↓</button><button class="secondary" title="Duplicate section" onclick="duplicateSection(${si})">⧉</button><button class="danger" onclick="removeSection(${si})">×</button></div></div>
 ${s.items.map((it,ii)=>`<div class="item-row">
 <input type="number" min="0" step="1" value="${it.qty}" oninput="sections[${si}].items[${ii}].qty=this.value;update()">
-<input data-item-desc="${si}-${ii}" value="${esc(it.desc)}" placeholder="Description" oninput="sections[${si}].items[${ii}].desc=this.value;update()">
-<input type="number" min="0" step="0.01" value="${it.price}" oninput="sections[${si}].items[${ii}].price=this.value;update()" onkeydown="itemKeydown(event,${si},${ii})">
+<input data-item-desc="${si}-${ii}" list="itemLibrary" value="${esc(it.desc)}" placeholder="Description" oninput="sections[${si}].items[${ii}].desc=this.value;update()" onchange="suggestItem(${si},${ii})">
+<input data-item-price="${si}-${ii}" type="number" min="0" step="0.01" value="${it.price}" oninput="sections[${si}].items[${ii}].price=this.value;update()" onkeydown="itemKeydown(event,${si},${ii})">
 <button class="danger" onclick="removeItem(${si},${ii})">×</button>
 </div>`).join('')}
 <button class="secondary" style="margin-top:8px" onclick="addItem(${si})">+ Item</button></div>`).join('');
 }
 
 function update(){
-headerBlock.style.display=useHeader.checked?'block':'none';
+headerImage.style.display=useHeader.checked?'block':'none';
 paper.classList.toggle('no-header',!useHeader.checked);
 pCustomer.textContent=customer.value;
 pVehicle.textContent=vehicle.value;
@@ -195,20 +220,21 @@ gstRow.style.display=includeGst.checked?'grid':'none';
 
 function collect(){return {customer:customer.value,date:date.value,vehicle:vehicle.value,mileage:mileage.value,model:model.value,useHeader:useHeader.checked,includeGst:includeGst.checked,showSectionSummary:showSectionSummary.checked,sections}}
 function safeName(v){return String(v||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'')}
-function baseFileName(){return `${safeName(customer.value)||'Customer'}_${safeName(vehicle.value)||'Vehicle'}`}
-function saveData(){const blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function printPdf(){const old=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=old,1000)}
+function fileDate(){const d=date.value||new Date().toISOString().slice(0,10);const [y,m,day]=d.split('-');return `${day}-${m}-${y}`}function baseFileName(){return `${safeName(customer.value)||'Customer'}_${safeName(vehicle.value)||'Vehicle'}_${fileDate()}`}
+function saveData(){rememberCurrent();const blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href)}
+function printPdf(){rememberCurrent();const old=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=old,1000)}
+function duplicateQuotation(){rememberCurrent();date.value=new Date().toISOString().slice(0,10);update();requestAnimationFrame(()=>customer.focus())}
 function newQuotation(){if(!confirm('Clear the current quotation and start a new one?'))return;customer.value='';vehicle.value='';mileage.value='';model.value='';date.value=new Date().toISOString().slice(0,10);useHeader.checked=true;includeGst.checked=true;showSectionSummary.checked=false;sections.splice(0,sections.length,blankSection());renderEditor();update();requestAnimationFrame(()=>customer.focus())}
 
 loadFile.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);customer.value=d.customer||'';date.value=d.date||new Date().toISOString().slice(0,10);vehicle.value=d.vehicle||'';mileage.value=d.mileage||'';model.value=d.model||'';useHeader.checked=d.useHeader!==false;includeGst.checked=d.includeGst!==false;showSectionSummary.checked=!!d.showSectionSummary;sections.splice(0,sections.length,...(d.sections?.length?d.sections:[blankSection()]));renderEditor();update();}catch{alert('Unable to open quotation file.')}};r.readAsText(f);e.target.value='';});
-[customer,date,vehicle,mileage,model].forEach(el=>el.addEventListener('input',update));
+[customer,date,vehicle,mileage,model].forEach(el=>el.addEventListener('input',update));vehicle.addEventListener('change',applyVehicleMemory);vehicle.addEventListener('blur',applyVehicleMemory);
 [useHeader,includeGst,showSectionSummary].forEach(el=>el.addEventListener('change',update));
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='n'){e.preventDefault();newQuotation()}if(k==='s'){e.preventDefault();saveData()}if(k==='p'){e.preventDefault();printPdf()}});
 
 const sectionsEl=$('sections');
 date.value=new Date().toISOString().slice(0,10);
 sections.push(blankSection());
-renderEditor();update();
+renderEditor();refreshSuggestions();update();
 requestAnimationFrame(()=>customer.focus());
 </script>
 </body>
