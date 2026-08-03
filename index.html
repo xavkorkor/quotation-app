@@ -23,6 +23,8 @@ h2{font-size:14px;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.08e
 .section-card{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0;background:#fafafa}
 .section-head{display:grid;grid-template-columns:1fr 34px;gap:6px}
 .item-row{display:grid;grid-template-columns:52px 1fr 88px 34px;gap:6px;margin-top:6px}
+.section-discount{display:grid;grid-template-columns:110px 1fr;gap:8px;margin-top:9px;padding-top:9px;border-top:1px dashed #d7dce2}
+.section-discount-label{font-size:11px;font-weight:700;color:#667085;margin-top:8px}
 button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:pointer}
 .primary{background:#1f2937;color:white}
 .secondary{background:#e9edf2}
@@ -47,6 +49,8 @@ button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:point
 .num{text-align:right;white-space:nowrap}
 .section-subtotal{display:grid;grid-template-columns:16mm 1fr 31mm 31mm;column-gap:3mm;font-size:10.5px;font-weight:700;padding:2mm 1mm 3mm;border-top:1px solid #bbb}
 .section-subtotal .section-amount{grid-column:4;text-align:right;white-space:nowrap}
+.section-adjustment{display:grid;grid-template-columns:1fr 31mm;gap:3mm;font-size:10px;padding:1.4mm 1mm;border-top:1px solid #eee}.section-adjustment .num{text-align:right}
+.section-final{font-weight:700;border-top:1px solid #bbb}
 .section-summary{margin-top:9mm;border-top:1px solid #222}
 .summary-head,.summary-row{display:grid;grid-template-columns:1fr 36mm;gap:4mm;padding:2mm}
 .summary-head{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #bbb}
@@ -57,20 +61,11 @@ button{border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:point
 .grand{font-weight:700;font-size:12px;border-top:1px solid #222;border-bottom:3px double #222}
 .notes{margin-top:14mm;font-size:9.5px;line-height:1.6}
 @media(max-width:1100px){.app{grid-template-columns:1fr}.editor{height:auto;position:relative}.preview-wrap{padding:10px}}
-@media print{
-body{background:#fff}
-.editor{display:none}
-.app{display:block}
-.preview-wrap{padding:0}
-.paper{box-shadow:none;margin:0;width:210mm;min-height:284mm;padding:7mm 18mm 12mm}
-.quote-section,.section-summary,.totals{break-inside:avoid;page-break-inside:avoid}
-@page{size:A4;margin:5mm 0 8mm 0;@bottom-center{content:"Page " counter(page) " of " counter(pages);font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#777}}
-}
+@media print{body{background:#fff}.editor{display:none}.app{display:block}.preview-wrap{padding:0}.paper{box-shadow:none;margin:0;width:210mm;min-height:284mm;padding:7mm 18mm 12mm}.quote-section,.section-summary,.totals{break-inside:avoid;page-break-inside:avoid}@page{size:A4;margin:5mm 0 8mm 0;@bottom-center{content:"Page " counter(page) " of " counter(pages);font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#777}}}
 </style>
 </head>
 <body>
-<div class="app">
-<div class="editor">
+<div class="app"><div class="editor">
 <div class="grid">
 <div><label>Customer Name</label><input id="customer" list="customerList" autocomplete="off"><datalist id="customerList"></datalist></div>
 <div><label>Date</label><input id="date" type="date"></div>
@@ -82,183 +77,46 @@ body{background:#fff}
 <label><input id="useHeader" type="checkbox" checked> Use original Alan's United header</label>
 <label><input id="includeGst" type="checkbox" checked> Include GST (9%)</label>
 <label><input id="showSectionSummary" type="checkbox"> Show section summary</label>
-<div class="discount-control">
-<label for="discount">Discount — optional</label>
-<div class="discount-fields">
-<select id="discountType" aria-label="Discount type"><option value="percent">Percentage (%)</option><option value="dollar">Dollar (S$)</option></select>
-<input id="discount" type="number" min="0" step="0.01" placeholder="Leave blank for no discount">
+<div class="discount-control"><label for="discount">Overall discount — optional</label><div class="discount-fields"><select id="discountType" aria-label="Discount type"><option value="percent">Percentage (%)</option><option value="dollar">Dollar (S$)</option></select><input id="discount" type="number" min="0" step="0.01" placeholder="Leave blank for no discount"></div></div>
 </div>
-</div>
-</div>
-<h2>Quotation Sections</h2>
-<div class="hint">Press Enter or Tab after Unit Price to add the next item automatically.</div>
+<h2>Quotation Sections</h2><div class="hint">Each section can have its own optional discount. Press Enter or Tab after Unit Price to add the next item automatically.</div>
 <div id="sections"></div><datalist id="itemLibrary"></datalist>
-<div class="toolbar">
-<button class="secondary" onclick="addSection()">+ Add Section</button>
-<button class="secondary" onclick="newQuotation()">New / Clear</button>
-<button class="secondary" onclick="duplicateQuotation()">Duplicate Quotation</button>
-<button class="primary" onclick="printPdf()">Print / Save PDF</button>
+<div class="toolbar"><button class="secondary" onclick="addSection()">+ Add Section</button><button class="secondary" onclick="newQuotation()">New / Clear</button><button class="secondary" onclick="duplicateQuotation()">Duplicate Quotation</button><button class="primary" onclick="printPdf()">Print / Save PDF</button></div>
+<div class="toolbar"><button class="secondary" onclick="saveData()">Save Quotation File</button><button class="secondary" onclick="loadFile.click()">Open Quotation File</button><input id="loadFile" type="file" accept=".json" hidden></div>
 </div>
-<div class="toolbar">
-<button class="secondary" onclick="saveData()">Save Quotation File</button>
-<button class="secondary" onclick="loadFile.click()">Open Quotation File</button>
-<input id="loadFile" type="file" accept=".json" hidden>
-</div>
-</div>
-
-<div class="preview-wrap">
-<div class="paper" id="paper">
+<div class="preview-wrap"><div class="paper" id="paper">
 <div id="headerImage" class="company-header"><div class="company-name">ALAN'S UNITED AUTO PTE. LTD.</div><div class="company-sub">Block 7, Sin Ming Industrial Estate, #01-76, Singapore 575642.</div><div class="company-sub">Tel: 6453 8686 (3 Lines)&nbsp;&nbsp;&nbsp;&nbsp;Fax: 6459 6550</div><div class="company-sub">Company Reg. No.: 201113667N</div><div class="company-gst">GST Reg. No.: 201113667N</div></div>
 <div class="quote-title">QUOTATION</div>
-<div class="meta">
-<div>
-<div class="meta-line"><span class="meta-label">Customer Name</span><span id="pCustomer"></span></div>
-<div class="meta-line"><span class="meta-label">Vehicle No.</span><span id="pVehicle"></span></div>
-<div class="meta-line"><span class="meta-label">Model / Type</span><span id="pModel"></span></div>
-</div>
-<div>
-<div class="meta-line"><span class="meta-label">Date</span><span id="pDate"></span></div>
-<div class="meta-line"><span class="meta-label">Mileage</span><span id="pMileage"></span></div>
-</div>
-</div>
+<div class="meta"><div><div class="meta-line"><span class="meta-label">Customer Name</span><span id="pCustomer"></span></div><div class="meta-line"><span class="meta-label">Vehicle No.</span><span id="pVehicle"></span></div><div class="meta-line"><span class="meta-label">Model / Type</span><span id="pModel"></span></div></div><div><div class="meta-line"><span class="meta-label">Date</span><span id="pDate"></span></div><div class="meta-line"><span class="meta-label">Mileage</span><span id="pMileage"></span></div></div></div>
 <div class="table-head"><div>Qty</div><div>Description</div><div class="num">Unit Price</div><div class="num">Amount</div></div>
-<div id="pSections"></div>
-<div id="sectionSummary" class="section-summary"></div>
-<div class="totals">
-<div class="total-row"><b>Subtotal</b><span class="num" id="subtotal"></span></div>
-<div class="total-row" id="discountRow" style="display:none"><span id="discountLabel">Discount</span><span class="num" id="discountAmount"></span></div>
-<div class="total-row" id="gstRow"><span>GST (9%)</span><span class="num" id="gst"></span></div>
-<div class="total-row grand"><span>GRAND TOTAL</span><span class="num" id="grand"></span></div>
-</div>
+<div id="pSections"></div><div id="sectionSummary" class="section-summary"></div>
+<div class="totals"><div class="total-row"><b>Subtotal</b><span class="num" id="subtotal"></span></div><div class="total-row" id="discountRow" style="display:none"><span id="discountLabel">Discount</span><span class="num" id="discountAmount"></span></div><div class="total-row" id="gstRow"><span>GST (9%)</span><span class="num" id="gst"></span></div><div class="total-row grand"><span>GRAND TOTAL</span><span class="num" id="grand"></span></div></div>
 <div class="notes">Quotation valid for 7 days.<br>Ad hoc items may be required.</div>
-</div>
-</div>
-</div>
-
+</div></div></div>
 <script>
-const $=id=>document.getElementById(id);
-const sections=[];
-const MEMORY_KEY='au_quotation_memory_v1';
+const $=id=>document.getElementById(id);const sections=[];const MEMORY_KEY='au_quotation_memory_v1';
 function getMemory(){try{return JSON.parse(localStorage.getItem(MEMORY_KEY)||'{"vehicles":{},"items":{}}')}catch{return {vehicles:{},items:{}}}}
 function setMemory(m){try{localStorage.setItem(MEMORY_KEY,JSON.stringify(m))}catch{}}
-function rememberCurrent(){
-  const m=getMemory();
-  const plate=vehicle.value.trim().toUpperCase();
-  if(plate)m.vehicles[plate]={customer:customer.value.trim(),model:model.value.trim(),mileage:mileage.value.trim()};
-  sections.forEach(s=>s.items.forEach(it=>{
-    const d=String(it.desc||'').trim();
-    if(d)m.items[d.toLowerCase()]={desc:d,price:it.price===''?'':it.price};
-  }));
-  setMemory(m);refreshSuggestions();
-}
-function refreshSuggestions(){
-  const m=getMemory();
-  vehicleList.innerHTML=Object.keys(m.vehicles).sort().map(v=>`<option value="${esc(v)}"></option>`).join('');
-  const names=[...new Set(Object.values(m.vehicles).map(v=>v.customer).filter(Boolean))].sort();
-  customerList.innerHTML=names.map(v=>`<option value="${esc(v)}"></option>`).join('');
-  itemLibrary.innerHTML=Object.values(m.items).sort((a,b)=>a.desc.localeCompare(b.desc)).map(x=>`<option value="${esc(x.desc)}">${x.price!==''?'Last: S$ '+money(x.price):''}</option>`).join('');
-}
-function applyVehicleMemory(){
-  const plate=vehicle.value.trim().toUpperCase();if(!plate)return;vehicle.value=plate;
-  const saved=getMemory().vehicles[plate];
-  if(saved){if(!customer.value)customer.value=saved.customer||'';if(!model.value)model.value=saved.model||'';if(!mileage.value)mileage.value=saved.mileage||'';update();}
-}
-function suggestItem(si,ii){
-  const it=sections[si].items[ii];
-  const saved=getMemory().items[String(it.desc||'').trim().toLowerCase()];
-  if(saved&&(it.price===''||it.price==null)){it.price=saved.price;renderEditor();update();requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-price="${si}-${ii}"]`);if(el)el.focus()});}
-}
-const money=n=>(n===null||n===undefined||n==='')?'':Number(n).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-function blankSection(title='REPAIR / SERVICE'){return {title,items:[{qty:1,desc:'',price:''}]}}
-function addSection(title='REPAIR / SERVICE',items=null){sections.push({title,items:items||[{qty:1,desc:'',price:''}]});renderEditor();update();}
-function removeSection(i){sections.splice(i,1);if(!sections.length)sections.push(blankSection());renderEditor();update();}
-function duplicateSection(i){sections.splice(i+1,0,JSON.parse(JSON.stringify(sections[i])));renderEditor();update();}
-function moveSection(i,dir){const j=i+dir;if(j<0||j>=sections.length)return;[sections[i],sections[j]]=[sections[j],sections[i]];renderEditor();update();}
-function addItem(si){const items=sections[si].items;const qty=items.length?(items[items.length-1].qty??1):1;items.push({qty,desc:'',price:''});renderEditor();update();focusItem(si,items.length-1);}
-function addItemAfter(si,ii){const qty=sections[si].items[ii]?.qty??1;sections[si].items.splice(ii+1,0,{qty,desc:'',price:''});renderEditor();update();focusItem(si,ii+1);}
-function removeItem(si,ii){sections[si].items.splice(ii,1);if(!sections[si].items.length)sections[si].items.push({qty:1,desc:'',price:''});renderEditor();update();}
-function focusItem(si,ii){requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-desc="${si}-${ii}"]`);if(el){el.focus();el.select();}})}
-function itemKeydown(e,si,ii){if((e.key==='Enter'||e.key==='Tab')&&!e.shiftKey){e.preventDefault();addItemAfter(si,ii);}}
-
-function renderEditor(){
-sectionsEl.innerHTML=sections.map((s,si)=>`<div class="section-card">
-<div class="section-head"><input value="${esc(s.title)}" oninput="sections[${si}].title=this.value;update()"><div class="section-actions"><button class="secondary" title="Move up" onclick="moveSection(${si},-1)">↑</button><button class="secondary" title="Move down" onclick="moveSection(${si},1)">↓</button><button class="secondary" title="Duplicate section" onclick="duplicateSection(${si})">⧉</button><button class="danger" onclick="removeSection(${si})">×</button></div></div>
-${s.items.map((it,ii)=>`<div class="item-row">
-<input type="number" min="0" step="1" value="${it.qty}" oninput="sections[${si}].items[${ii}].qty=this.value;update()">
-<input data-item-desc="${si}-${ii}" list="itemLibrary" value="${esc(it.desc)}" placeholder="Description" oninput="sections[${si}].items[${ii}].desc=this.value;update()" onchange="suggestItem(${si},${ii})">
-<input data-item-price="${si}-${ii}" type="number" min="0" step="0.01" value="${it.price}" oninput="sections[${si}].items[${ii}].price=this.value;update()" onkeydown="itemKeydown(event,${si},${ii})">
-<button class="danger" onclick="removeItem(${si},${ii})">×</button>
-</div>`).join('')}
-<button class="secondary" style="margin-top:8px" onclick="addItem(${si})">+ Item</button></div>`).join('');
-}
-
-function update(){
-headerImage.style.display=useHeader.checked?'block':'none';
-paper.classList.toggle('no-header',!useHeader.checked);
-pCustomer.textContent=customer.value;
-pVehicle.textContent=vehicle.value;
-pModel.textContent=model.value;
-pMileage.textContent=mileage.value;
-pDate.textContent=date.value?new Date(date.value+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
-
-let subtotalValue=0,hasAny=false;
-const sectionTotals=[];
-pSections.innerHTML=sections.map(s=>{
-let sectionTotal=0,sectionHas=false;
-const rows=s.items.map(it=>{
-const hasQty=it.qty!==''&&it.qty!=null;
-const hasPrice=it.price!==''&&it.price!=null;
-let amount='';
-if(hasQty&&hasPrice){amount=(+it.qty||0)*(+it.price||0);sectionTotal+=amount;subtotalValue+=amount;sectionHas=true;hasAny=true;}
-return `<div class="line-item"><div>${esc(it.qty)}</div><div>${esc(it.desc)}</div><div class="num">${money(it.price)}</div><div class="num">${money(amount)}</div></div>`;
-}).join('');
-sectionTotals.push({title:s.title,total:sectionTotal,hasAmount:sectionHas});
-const sum=sectionHas?`<div class="section-subtotal"><div class="section-amount">S$ ${money(sectionTotal)}</div></div>`:'';
-return `<div class="quote-section"><div class="section-title">${esc(s.title)}</div>${rows}${sum}</div>`;
-}).join('');
-
-const summaryRows=sectionTotals.filter(x=>x.hasAmount).map(x=>`<div class="summary-row"><div>${esc(x.title)}</div><div class="num">S$ ${money(x.total)}</div></div>`).join('');
-sectionSummary.innerHTML=showSectionSummary.checked&&summaryRows?`<div class="summary-head"><div>Section Summary</div><div class="num">Amount</div></div>${summaryRows}<div class="summary-row summary-total"><div>TOTAL OF ALL SECTIONS</div><div class="num">S$ ${money(subtotalValue)}</div></div>`:'';
-
-const enteredDiscount=discount.value===''?0:Math.max(0,Number(discount.value)||0);
-const isPercent=discountType.value==='percent';
-const safePercent=Math.min(100,enteredDiscount);
-const rawDiscount=isPercent?subtotalValue*(safePercent/100):enteredDiscount;
-const discountValue=hasAny?Math.min(rawDiscount,subtotalValue):0;
-const taxableValue=Math.max(0,subtotalValue-discountValue);
-const gstValue=hasAny&&includeGst.checked?taxableValue*.09:'';
-subtotal.textContent=hasAny?'S$ '+money(subtotalValue):'';
-discountLabel.textContent=isPercent&&discountValue>0?`Discount (${money(safePercent).replace('.00','')}%)`:'Discount';
-discountAmount.textContent=discountValue>0?'- S$ '+money(discountValue):'';
-discountRow.style.display=discountValue>0?'grid':'none';
-gst.textContent=hasAny&&includeGst.checked?'S$ '+money(gstValue):'';
-grand.textContent=hasAny?'S$ '+money(taxableValue+(includeGst.checked?Number(gstValue):0)):'';
-gstRow.style.display=includeGst.checked?'grid':'none';
-}
-
+function rememberCurrent(){const m=getMemory();const plate=vehicle.value.trim().toUpperCase();if(plate)m.vehicles[plate]={customer:customer.value.trim(),model:model.value.trim(),mileage:mileage.value.trim()};sections.forEach(s=>s.items.forEach(it=>{const d=String(it.desc||'').trim();if(d)m.items[d.toLowerCase()]={desc:d,price:it.price===''?'':it.price};}));setMemory(m);refreshSuggestions();}
+function refreshSuggestions(){const m=getMemory();vehicleList.innerHTML=Object.keys(m.vehicles).sort().map(v=>`<option value="${esc(v)}"></option>`).join('');const names=[...new Set(Object.values(m.vehicles).map(v=>v.customer).filter(Boolean))].sort();customerList.innerHTML=names.map(v=>`<option value="${esc(v)}"></option>`).join('');itemLibrary.innerHTML=Object.values(m.items).sort((a,b)=>a.desc.localeCompare(b.desc)).map(x=>`<option value="${esc(x.desc)}">${x.price!==''?'Last: S$ '+money(x.price):''}</option>`).join('');}
+function applyVehicleMemory(){const plate=vehicle.value.trim().toUpperCase();if(!plate)return;vehicle.value=plate;const saved=getMemory().vehicles[plate];if(saved){if(!customer.value)customer.value=saved.customer||'';if(!model.value)model.value=saved.model||'';if(!mileage.value)mileage.value=saved.mileage||'';update();}}
+function suggestItem(si,ii){const it=sections[si].items[ii];const saved=getMemory().items[String(it.desc||'').trim().toLowerCase()];if(saved&&(it.price===''||it.price==null)){it.price=saved.price;renderEditor();update();requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-price="${si}-${ii}"]`);if(el)el.focus()});}}
+const money=n=>(n===null||n===undefined||n==='')?'':Number(n).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function normalizeSection(s){return {title:s?.title||'REPAIR / SERVICE',discountType:s?.discountType||'percent',discount:s?.discount??'',items:Array.isArray(s?.items)&&s.items.length?s.items:[{qty:1,desc:'',price:''}]}}
+function blankSection(title='REPAIR / SERVICE'){return {title,discountType:'percent',discount:'',items:[{qty:1,desc:'',price:''}]}}
+function addSection(title='REPAIR / SERVICE',items=null){sections.push({title,discountType:'percent',discount:'',items:items||[{qty:1,desc:'',price:''}]});renderEditor();update();}
+function removeSection(i){sections.splice(i,1);if(!sections.length)sections.push(blankSection());renderEditor();update();}function duplicateSection(i){sections.splice(i+1,0,JSON.parse(JSON.stringify(sections[i])));renderEditor();update();}function moveSection(i,dir){const j=i+dir;if(j<0||j>=sections.length)return;[sections[i],sections[j]]=[sections[j],sections[i]];renderEditor();update();}
+function addItem(si){const items=sections[si].items;const qty=items.length?(items[items.length-1].qty??1):1;items.push({qty,desc:'',price:''});renderEditor();update();focusItem(si,items.length-1);}function addItemAfter(si,ii){const qty=sections[si].items[ii]?.qty??1;sections[si].items.splice(ii+1,0,{qty,desc:'',price:''});renderEditor();update();focusItem(si,ii+1);}function removeItem(si,ii){sections[si].items.splice(ii,1);if(!sections[si].items.length)sections[si].items.push({qty:1,desc:'',price:''});renderEditor();update();}function focusItem(si,ii){requestAnimationFrame(()=>{const el=document.querySelector(`[data-item-desc="${si}-${ii}"]`);if(el){el.focus();el.select();}})}function itemKeydown(e,si,ii){if((e.key==='Enter'||e.key==='Tab')&&!e.shiftKey){e.preventDefault();addItemAfter(si,ii);}}
+function renderEditor(){sectionsEl.innerHTML=sections.map((s,si)=>`<div class="section-card"><div class="section-head"><input value="${esc(s.title)}" oninput="sections[${si}].title=this.value;update()"><div class="section-actions"><button class="secondary" title="Move up" onclick="moveSection(${si},-1)">↑</button><button class="secondary" title="Move down" onclick="moveSection(${si},1)">↓</button><button class="secondary" title="Duplicate section" onclick="duplicateSection(${si})">⧉</button><button class="danger" onclick="removeSection(${si})">×</button></div></div>${s.items.map((it,ii)=>`<div class="item-row"><input type="number" min="0" step="1" value="${it.qty}" oninput="sections[${si}].items[${ii}].qty=this.value;update()"><input data-item-desc="${si}-${ii}" list="itemLibrary" value="${esc(it.desc)}" placeholder="Description" oninput="sections[${si}].items[${ii}].desc=this.value;update()" onchange="suggestItem(${si},${ii})"><input data-item-price="${si}-${ii}" type="number" min="0" step="0.01" value="${it.price}" oninput="sections[${si}].items[${ii}].price=this.value;update()" onkeydown="itemKeydown(event,${si},${ii})"><button class="danger" onclick="removeItem(${si},${ii})">×</button></div>`).join('')}<div class="section-discount-label">Section discount — optional</div><div class="section-discount"><select onchange="sections[${si}].discountType=this.value;update()"><option value="percent" ${s.discountType==='percent'?'selected':''}>Percentage (%)</option><option value="dollar" ${s.discountType==='dollar'?'selected':''}>Dollar (S$)</option></select><input type="number" min="0" step="0.01" value="${esc(s.discount)}" placeholder="Leave blank for no discount" oninput="sections[${si}].discount=this.value;update()"></div><button class="secondary" style="margin-top:8px" onclick="addItem(${si})">+ Item</button></div>`).join('');}
+function update(){headerImage.style.display=useHeader.checked?'block':'none';paper.classList.toggle('no-header',!useHeader.checked);pCustomer.textContent=customer.value;pVehicle.textContent=vehicle.value;pModel.textContent=model.value;pMileage.textContent=mileage.value;pDate.textContent=date.value?new Date(date.value+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
+let subtotalValue=0,hasAny=false;const sectionTotals=[];pSections.innerHTML=sections.map(s=>{let sectionGross=0,sectionHas=false;const rows=s.items.map(it=>{const hasQty=it.qty!==''&&it.qty!=null;const hasPrice=it.price!==''&&it.price!=null;let amount='';if(hasQty&&hasPrice){amount=(+it.qty||0)*(+it.price||0);sectionGross+=amount;sectionHas=true;hasAny=true;}return `<div class="line-item"><div>${esc(it.qty)}</div><div>${esc(it.desc)}</div><div class="num">${money(it.price)}</div><div class="num">${money(amount)}</div></div>`;}).join('');const entered= s.discount===''?0:Math.max(0,Number(s.discount)||0);const isPercent=s.discountType!=='dollar';const safePercent=Math.min(100,entered);const rawDiscount=isPercent?sectionGross*(safePercent/100):entered;const sectionDiscount=sectionHas?Math.min(rawDiscount,sectionGross):0;const sectionNet=Math.max(0,sectionGross-sectionDiscount);if(sectionHas)subtotalValue+=sectionNet;sectionTotals.push({title:s.title,total:sectionNet,gross:sectionGross,discount:sectionDiscount,hasAmount:sectionHas});let sum='';if(sectionHas){if(sectionDiscount>0){const dLabel=isPercent?`Discount (${money(safePercent).replace('.00','')}%)`:'Discount';sum=`<div class="section-adjustment"><div>Section subtotal</div><div class="num">S$ ${money(sectionGross)}</div></div><div class="section-adjustment"><div>${dLabel}</div><div class="num">- S$ ${money(sectionDiscount)}</div></div><div class="section-adjustment section-final"><div>Section total</div><div class="num">S$ ${money(sectionNet)}</div></div>`;}else{sum=`<div class="section-subtotal"><div class="section-amount">S$ ${money(sectionNet)}</div></div>`;}}return `<div class="quote-section"><div class="section-title">${esc(s.title)}</div>${rows}${sum}</div>`;}).join('');
+const summaryRows=sectionTotals.filter(x=>x.hasAmount).map(x=>`<div class="summary-row"><div>${esc(x.title)}</div><div class="num">S$ ${money(x.total)}</div></div>`).join('');sectionSummary.innerHTML=showSectionSummary.checked&&summaryRows?`<div class="summary-head"><div>Section Summary</div><div class="num">Amount</div></div>${summaryRows}<div class="summary-row summary-total"><div>TOTAL OF ALL SECTIONS</div><div class="num">S$ ${money(subtotalValue)}</div></div>`:'';
+const enteredDiscount=discount.value===''?0:Math.max(0,Number(discount.value)||0);const isPercent=discountType.value==='percent';const safePercent=Math.min(100,enteredDiscount);const rawDiscount=isPercent?subtotalValue*(safePercent/100):enteredDiscount;const discountValue=hasAny?Math.min(rawDiscount,subtotalValue):0;const taxableValue=Math.max(0,subtotalValue-discountValue);const gstValue=hasAny&&includeGst.checked?taxableValue*.09:'';subtotal.textContent=hasAny?'S$ '+money(subtotalValue):'';discountLabel.textContent=isPercent&&discountValue>0?`Overall Discount (${money(safePercent).replace('.00','')}%)`:'Overall Discount';discountAmount.textContent=discountValue>0?'- S$ '+money(discountValue):'';discountRow.style.display=discountValue>0?'grid':'none';gst.textContent=hasAny&&includeGst.checked?'S$ '+money(gstValue):'';grand.textContent=hasAny?'S$ '+money(taxableValue+(includeGst.checked?Number(gstValue):0)):'';gstRow.style.display=includeGst.checked?'grid':'none';}
 function collect(){return {customer:customer.value,date:date.value,vehicle:vehicle.value,mileage:mileage.value,model:model.value,useHeader:useHeader.checked,includeGst:includeGst.checked,showSectionSummary:showSectionSummary.checked,discountType:discountType.value,discount:discount.value,sections}}
-function safeName(v){return String(v||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'')}
-function fileDate(){const d=date.value||new Date().toISOString().slice(0,10);const [y,m,day]=d.split('-');return `${day}-${m}-${y}`}
-function baseFileName(){return `${safeName(customer.value)||'Customer'}_${safeName(vehicle.value)||'Vehicle'}_${fileDate()}`}
-function saveData(){rememberCurrent();const blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function printPdf(){rememberCurrent();const old=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=old,1000)}
-function duplicateQuotation(){rememberCurrent();date.value=new Date().toISOString().slice(0,10);update();requestAnimationFrame(()=>customer.focus())}
-function newQuotation(){if(!confirm('Clear the current quotation and start a new one?'))return;customer.value='';vehicle.value='';mileage.value='';model.value='';discount.value='';discountType.value='percent';date.value=new Date().toISOString().slice(0,10);useHeader.checked=true;includeGst.checked=true;showSectionSummary.checked=false;sections.splice(0,sections.length,blankSection());renderEditor();update();requestAnimationFrame(()=>customer.focus())}
-
-loadFile.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);customer.value=d.customer||'';date.value=d.date||new Date().toISOString().slice(0,10);vehicle.value=d.vehicle||'';mileage.value=d.mileage||'';model.value=d.model||'';discount.value=d.discount??'';discountType.value=d.discountType||'dollar';useHeader.checked=d.useHeader!==false;includeGst.checked=d.includeGst!==false;showSectionSummary.checked=!!d.showSectionSummary;sections.splice(0,sections.length,...(d.sections?.length?d.sections:[blankSection()]));renderEditor();update();}catch{alert('Unable to open quotation file.')}};r.readAsText(f);e.target.value='';});
-[customer,date,vehicle,mileage,model,discount].forEach(el=>el.addEventListener('input',update));vehicle.addEventListener('change',applyVehicleMemory);vehicle.addEventListener('blur',applyVehicleMemory);
-[useHeader,includeGst,showSectionSummary,discountType].forEach(el=>el.addEventListener('change',update));
-document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='n'){e.preventDefault();newQuotation()}if(k==='s'){e.preventDefault();saveData()}if(k==='p'){e.preventDefault();printPdf()}});
-
-const sectionsEl=$('sections');
-date.value=new Date().toISOString().slice(0,10);
-discountType.value='percent';
-discount.value='';
-sections.push(blankSection());
-renderEditor();refreshSuggestions();update();
-requestAnimationFrame(()=>customer.focus());
+function safeName(v){return String(v||'').trim().replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'')}function fileDate(){const d=date.value||new Date().toISOString().slice(0,10);const [y,m,day]=d.split('-');return `${day}-${m}-${y}`}function baseFileName(){return `${safeName(customer.value)||'Customer'}_${safeName(vehicle.value)||'Vehicle'}_${fileDate()}`}function saveData(){rememberCurrent();const blob=new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=baseFileName()+'.json';a.click();URL.revokeObjectURL(a.href)}function printPdf(){rememberCurrent();const old=document.title;document.title=baseFileName();window.print();setTimeout(()=>document.title=old,1000)}function duplicateQuotation(){rememberCurrent();date.value=new Date().toISOString().slice(0,10);update();requestAnimationFrame(()=>customer.focus())}function newQuotation(){if(!confirm('Clear the current quotation and start a new one?'))return;customer.value='';vehicle.value='';mileage.value='';model.value='';discount.value='';discountType.value='percent';date.value=new Date().toISOString().slice(0,10);useHeader.checked=true;includeGst.checked=true;showSectionSummary.checked=false;sections.splice(0,sections.length,blankSection());renderEditor();update();requestAnimationFrame(()=>customer.focus())}
+loadFile.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);customer.value=d.customer||'';date.value=d.date||new Date().toISOString().slice(0,10);vehicle.value=d.vehicle||'';mileage.value=d.mileage||'';model.value=d.model||'';discount.value=d.discount??'';discountType.value=d.discountType||'dollar';useHeader.checked=d.useHeader!==false;includeGst.checked=d.includeGst!==false;showSectionSummary.checked=!!d.showSectionSummary;sections.splice(0,sections.length,...(d.sections?.length?d.sections.map(normalizeSection):[blankSection()]));renderEditor();update();}catch{alert('Unable to open quotation file.')}};r.readAsText(f);e.target.value='';});
+[customer,date,vehicle,mileage,model,discount].forEach(el=>el.addEventListener('input',update));vehicle.addEventListener('change',applyVehicleMemory);vehicle.addEventListener('blur',applyVehicleMemory);[useHeader,includeGst,showSectionSummary,discountType].forEach(el=>el.addEventListener('change',update));document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='n'){e.preventDefault();newQuotation()}if(k==='s'){e.preventDefault();saveData()}if(k==='p'){e.preventDefault();printPdf()}});
+const sectionsEl=$('sections');date.value=new Date().toISOString().slice(0,10);discountType.value='percent';discount.value='';sections.push(blankSection());renderEditor();refreshSuggestions();update();requestAnimationFrame(()=>customer.focus());
 </script>
 </body>
 </html>
