@@ -10,5 +10,6 @@
     .then(()=>load('./typography-uppercase.js'))
     .then(()=>load('./section-discount-menu.js'))
     .then(()=>load('./memory-sanitizer.js'))
+    .then(()=>load('./discount-preview.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
