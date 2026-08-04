@@ -1,21 +1,42 @@
 // Alan's United Auto - collated text list importer
 // Replaces photo/OCR input while handwriting AI is paused.
 (function(){
-  const CATEGORY_RULES = [
-    ['ENGINE / SERVICE', /engine|oil filter|air filter|cabin filter|spark plug|ignition coil|timing|water pump|thermostat|radiator|coolant|mounting|mount\b|belt|pulley|turbo|manifold|gasket|o[ -]?ring/i],
+  // Strong category signals. These are used to START or CHANGE a repair group.
+  // Generic words such as bearing, bush, sensor, labour, gasket etc. are handled
+  // contextually below so they stay with neighbouring workshop items.
+  const STRONG_CATEGORY_RULES = [
     ['GEARBOX / DRIVETRAIN', /gearbox|transmission|\batf\b|\bcvt\b|\bdct\b|\bdsg\b|clutch|flywheel|drive ?shaft|cv joint|differential|transfer case|mechatronic|valve body/i],
-    ['SUSPENSION / STEERING', /shock|absorber|strut|top mount|lower arm|upper arm|control arm|ball joint|anti.?roll|stabili[sz]er|sway bar|tie rod|rack end|steering|wheel bearing|hub bearing|alignment|spring|bush/i],
-    ['BRAKES', /brake|caliper|rotor|disc|abs sensor|wheel speed|handbrake|parking brake|brake servo/i],
+    ['SUSPENSION / STEERING', /shock|absorber|strut|top mount|lower arm|upper arm|control arm|ball joint|anti.?roll|stabili[sz]er|sway bar|tie rod|rack end|steering|wheel bearing|hub bearing|wheel hub|alignment|coil spring|suspension/i],
+    ['BRAKES', /brake|caliper|rotor|brake disc|abs sensor|wheel speed|handbrake|parking brake|brake servo/i],
     ['AIRCON', /air.?con|air conditioning|compressor|condenser|evaporator|cooling coil|blower|refrigerant|expansion valve|receiver drier/i],
-    ['ELECTRICAL / BATTERY', /battery|alternator|starter|sensor|switch|control unit|module|ecu|wiring|window motor|regulator|keyless|push start|camera|pdc|parking sensor/i],
     ['TYRES / WHEELS', /tyre|tire|rim|wheel balancing|rotation|tpms|puncture/i],
     ['BODY / PAINT', /bumper|fender|bonnet|hood|door|tailgate|boot lid|lamp|headlight|headlamp|tail light|tail lamp|mirror|windscreen|windshield|panel beat|spray|paint|respray|chrome|reflector|cross member/i],
-    ['LABOUR / SERVICE', /labou?r|diagnos|inspection fee|outside service|program|coding|calibrat|road test|remove and renew|repair|overhaul|service charge/i]
+    ['ENGINE / SERVICE', /engine|engine oil|oil filter|air filter|cabin filter|spark plug|ignition coil|timing|water pump|thermostat|radiator|coolant|engine mount|drive belt|serpentine|pulley|turbo|intake manifold|exhaust manifold/i],
+    ['ELECTRICAL / BATTERY', /battery|alternator|starter|window motor|window regulator|keyless|push start|camera|pdc|parking sensor|ecu|bcm/i]
   ];
+
+  // These words are deliberately NOT allowed to create a new section on their own.
+  // In workshop lists they usually belong to the repair group immediately above them.
+  const CONTEXTUAL_ONLY = /^(?:.*\b)?(?:bearing|bearings|bush|bushes|bushing|bushings|gasket|gaskets|o[ -]?ring|seal|seals|sensor|sensors|switch|module|control unit|mount|mounting|mountings|bracket|brackets|cover|covers|stopper|stoppers|boot|boots|hose|hoses|pipe|pipes|bolt|bolts|nut|nuts|washer|washers|clip|clips)(?:\b.*)?$/i;
+  const LABOUR_CONTEXT = /labou?r|workmanship|installation|install|remove and renew|remove & renew|remove|renew|replace|replacement|repair|overhaul|service charge|outside service|inspection fee|diagnos|program|coding|calibrat|road test/i;
 
   function escHtml(s){return String(s||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
   function cleanLine(s){return String(s||'').replace(/[•·]/g,' ').replace(/\t/g,' ').replace(/\s+/g,' ').trim()}
-  function categoryFor(desc){for(const [name,rx] of CATEGORY_RULES) if(rx.test(desc)) return name; return 'OTHER ITEMS'}
+  function strongCategory(desc){for(const [name,rx] of STRONG_CATEGORY_RULES) if(rx.test(desc)) return name; return ''}
+  function fallbackCategory(desc){
+    if(/gasket|o[ -]?ring|seal|mounting|mount\b|belt|pulley/i.test(desc)) return 'ENGINE / SERVICE';
+    if(/sensor|switch|control unit|module|wiring/i.test(desc)) return 'ELECTRICAL / BATTERY';
+    if(/bearing|bush/i.test(desc)) return 'SUSPENSION / STEERING';
+    if(LABOUR_CONTEXT.test(desc)) return 'LABOUR / SERVICE';
+    return 'OTHER ITEMS';
+  }
+  function contextualCategory(desc,currentCategory){
+    const strong=strongCategory(desc);
+    if(strong) return strong;
+    // Labour and generic components stay in the active repair section whenever possible.
+    if(currentCategory && currentCategory!=='OTHER ITEMS' && (LABOUR_CONTEXT.test(desc)||CONTEXTUAL_ONLY.test(desc))) return currentCategory;
+    return fallbackCategory(desc);
+  }
   function isHeading(line){
     if(!line || /\d/.test(line) || /[$@=]/.test(line)) return false;
     const t=line.replace(/[:\-–—]+$/,'').trim();
@@ -44,7 +65,6 @@
     if(m){q=`${m[1]} ${m[2]}`;desc=desc.slice(m[0].length).trim();return{q,desc}}
     m=desc.match(/^([0-9]+(?:\.\d+)?)\s*[xX]\s*/);
     if(m){q=m[1];desc=desc.slice(m[0].length).trim();return{q,desc}}
-    // Workshop shorthand such as "2 Front Shock Absorbers"
     m=desc.match(/^([0-9]+(?:\.\d+)?)\s+(?=[A-Za-z])/);
     if(m){q=m[1];desc=desc.slice(m[0].length).trim()}
     return{q,desc};
@@ -52,20 +72,13 @@
 
   function parseItem(line){
     let raw=cleanLine(line); if(!raw) return null;
-    // Remove common bullets / row numbers but preserve quantities.
     raw=raw.replace(/^[-–—]+\s*/,'').trim();
     let price=null, body=raw, priced=false;
-    // Prefer explicit @ / $ / SGD markers.
     let m=raw.match(/(?:\s+|^)(?:@\s*|S\$\s*|SGD\s*|\$\s*)([0-9][0-9,]*(?:\.\d{1,2})?)\s*$/i);
     if(m){price=Number(m[1].replace(/,/g,''));body=raw.slice(0,m.index).trim();priced=true}
     else {
-      // Plain amount at line end. Require whitespace before it to avoid swallowing part numbers.
       m=raw.match(/\s+([0-9][0-9,]*(?:\.\d{1,2})?)\s*$/);
-      if(m){
-        const n=Number(m[1].replace(/,/g,''));
-        // Values that look like years / tiny incidental numbers are not treated as prices unless context is clear.
-        if(Number.isFinite(n) && n>=5 && !(n>=1900&&n<=2100)) {price=n;body=raw.slice(0,m.index).trim();priced=true}
-      }
+      if(m){const n=Number(m[1].replace(/,/g,''));if(Number.isFinite(n)&&n>=5&&!(n>=1900&&n<=2100)){price=n;body=raw.slice(0,m.index).trim();priced=true}}
     }
     body=body.replace(/\s*[-–—:=]\s*$/,'').trim();
     const {q,desc}=parseQtyAndDesc(body);
@@ -76,18 +89,30 @@
   function parseCollated(text){
     const lines=String(text||'').split(/\r?\n/).map(cleanLine).filter(Boolean);
     const {fields,consumed}=extractTopFields(lines);
-    const groups=[]; let explicitHeading=null, sawExplicit=false, pricedSeen=false;
-    function getGroup(title){let g=groups.find(x=>x.title===title);if(!g){g={title,items:[]};groups.push(g)}return g}
+    const groups=[]; let explicitHeading=null, sawExplicit=false, pricedSeen=false, activeCategory='';
+    function getGroup(title){
+      // Keep sections in the order they first appear. Repeated later items of the same category return to that section.
+      let g=groups.find(x=>x.title===title);if(!g){g={title,items:[]};groups.push(g)}return g
+    }
     lines.forEach((line,i)=>{
       if(consumed.has(i)) return;
-      if(isHeading(line)){explicitHeading=normalizeHeading(line);sawExplicit=true;return}
+      if(isHeading(line)){explicitHeading=normalizeHeading(line);sawExplicit=true;activeCategory=explicitHeading;return}
       if(/^(subtotal|grand total|total|gst|tax|discount|quotation|quote|invoice)\b/i.test(line)) return;
       const x=parseItem(line); if(!x) return;
       if(x.priced) pricedSeen=true;
-      // Before the first value, descriptive workflow notes are ignored as requested.
       if(!pricedSeen && !x.priced) return;
       if(!x.priced && !document.getElementById('collatedIncluded')?.checked) return;
-      const title=sawExplicit&&explicitHeading ? explicitHeading : categoryFor(x.d);
+
+      let title;
+      if(sawExplicit && explicitHeading){
+        title=explicitHeading;
+      }else{
+        title=contextualCategory(x.d,activeCategory);
+        // Once a strong repair category has appeared, it becomes the working context for
+        // following generic parts and labour until another strong category appears.
+        if(title!=='LABOUR / SERVICE' && title!=='OTHER ITEMS') activeCategory=title;
+        else if(activeCategory && (LABOUR_CONTEXT.test(x.d)||CONTEXTUAL_ONLY.test(x.d))) title=activeCategory;
+      }
       x.included=!x.priced;
       getGroup(title).items.push(x);
     });
@@ -117,7 +142,7 @@
     const mode=document.getElementById('collatedMode')?.value||'replace';
     if(mode==='append') S.push(...sections); else S.splice(0,S.length,...sections);
     render();upd();
-    const status=document.getElementById('collatedStatus');if(status)status.textContent=`Added ${r.count} item${r.count===1?'':'s'} into ${r.groups.length} quotation section${r.groups.length===1?'':'s'}. Please review quantities and prices before sending.`;
+    const status=document.getElementById('collatedStatus');if(status)status.textContent=`Added ${r.count} item${r.count===1?'':'s'} into ${r.groups.length} quotation section${r.groups.length===1?'':'s'}. Nearby generic parts and labour are kept with their repair group.`;
     document.querySelector('.sections-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
   }
 
@@ -126,8 +151,8 @@
     const settings=document.querySelector('.settings-panel'); if(!settings||document.getElementById('collatedPanel')) return;
     const panel=document.createElement('div'); panel.id='collatedPanel';panel.className='panel';panel.style.borderLeft='4px solid #2563eb';
     panel.innerHTML=`<div class="panel-title" style="color:#1d4ed8">PASTE / IMPORT COLLATED LIST</div>
-      <div class="small" style="margin-bottom:8px">Paste a parts or repair list from WhatsApp, Notes, email or another system. The app will identify quantities and prices, group the items into sensible repair sections, and fill the quotation. Your wording is kept as pasted.</div>
-      <textarea id="collatedText" style="min-height:180px" placeholder="Example:\n2 pcs Front Shock Absorbers @265\n2 pcs Front Top Mounts @105\n2 pcs Front Bearings @100\nComputer Alignment 60\nLabour 450"></textarea>
+      <div class="small" style="margin-bottom:8px">Paste a parts or repair list from WhatsApp, Notes, email or another system. Items are grouped using both the part name and the surrounding lines. Generic parts and labour stay with the repair group above them.</div>
+      <textarea id="collatedText" style="min-height:180px" placeholder="Example:\n2 pcs Front Shock Absorbers @265\n2 pcs Front Wheel Bearings @160\n2 pcs Top Mounts @105\nLabour 450"></textarea>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div><label>Import Mode</label><select id="collatedMode"><option value="replace">Replace current items</option><option value="append">Add to current quotation</option></select></div><label style="display:flex;align-items:flex-end;gap:7px;padding-bottom:9px"><input id="collatedIncluded" type="checkbox" checked style="width:16px"> Unpriced lines after first value = Included</label></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px"><button id="collatedPreviewBtn" class="btn secondary">Preview Breakdown</button><button id="collatedFillBtn" class="btn primary">Sort & Fill Quotation</button></div>
       <div id="collatedPreview" style="margin-top:9px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc"><span class="small">Paste a list above to preview it.</span></div><div id="collatedStatus" class="small" style="margin-top:7px"></div>`;
