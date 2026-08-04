@@ -14,5 +14,6 @@
     .then(()=>load('./service-qty-display.js'))
     .then(()=>load('./preview-editor.js'))
     .then(()=>load('./collated-input-safeguard.js'))
+    .then(()=>load('./workflow-upgrades.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
