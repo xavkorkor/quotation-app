@@ -13,5 +13,6 @@
     .then(()=>load('./discount-preview.js'))
     .then(()=>load('./service-qty-display.js'))
     .then(()=>load('./preview-editor.js'))
+    .then(()=>load('./collated-input-safeguard.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
