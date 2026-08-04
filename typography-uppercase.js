@@ -1,4 +1,5 @@
-// Alan's United Auto - slightly larger quotation/editor text and uppercase entry defaults.
+// Alan's United Auto - slightly larger text + safe uppercase typing.
+// IMPORTANT: uppercase is visual/entry-only and must never call render/upd while the user is typing.
 (function(){
   let busy=false;
   function injectStyle(){
@@ -15,35 +16,35 @@
       .summary-head,.summary-row,.adjust{font-size:10.5px}
       .totals{font-size:11.5px}
       .notes{font-size:10px}
+      .item-main input[type="text"],.section-head input[type="text"],#customer,#vehicle,#model,#remarks{text-transform:uppercase}
     `;document.head.appendChild(s);
   }
-  function upperValue(el){
-    if(!el || el.dataset.auaUpperBound==='1')return;
+  function isUpperField(el){
+    if(!el)return false;
     const id=el.id||'';
-    if(['phone','date','mileage','overallDisc'].includes(id))return;
-    if(el.type==='number'||el.type==='date'||el.type==='tel')return;
+    if(['phone','date','mileage','overallDisc'].includes(id))return false;
+    if(el.type==='number'||el.type==='date'||el.type==='tel')return false;
+    return el.matches('.item-main input[type="text"],.section-head input[type="text"],#customer,#vehicle,#model,#remarks');
+  }
+  function bind(el){
+    if(!isUpperField(el)||el.dataset.auaUpperBound==='1')return;
     el.dataset.auaUpperBound='1';
-    el.addEventListener('input',()=>{
-      const a=el.selectionStart,b=el.selectionEnd;
-      const up=el.value.toUpperCase();
-      if(el.value!==up){el.value=up;try{el.setSelectionRange(a,b)}catch{};el.dispatchEvent(new Event('change',{bubbles:true}))}
+    // Convert only when the field is finished. This avoids triggering the app's render cycle per keystroke.
+    el.addEventListener('change',()=>{
+      const up=String(el.value||'').toUpperCase();
+      if(el.value!==up)el.value=up;
+    });
+    el.addEventListener('blur',()=>{
+      const up=String(el.value||'').toUpperCase();
+      if(el.value!==up){el.value=up;el.dispatchEvent(new Event('change',{bubbles:true}))}
     });
   }
-  function uppercaseModel(){
-    try{
-      if(window.S) S.forEach(sec=>{sec.title=String(sec.title||'').toUpperCase();sec.items.forEach(x=>x.d=String(x.d||'').toUpperCase())});
-      ['customer','vehicle','model','remarks'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=e.value.toUpperCase()});
-    }catch{}
-  }
-  function bindAll(){
-    document.querySelectorAll('.editor input[type="text"],.editor input:not([type]),.editor textarea').forEach(upperValue);
-  }
-  function patchRender(){
-    if(window.__auaUpperPatched)return;window.__auaUpperPatched=true;
-    if(typeof window.render==='function'){const old=window.render;window.render=function(){uppercaseModel();const r=old.apply(this,arguments);setTimeout(bindAll,0);return r}}
-    if(typeof window.upd==='function'){const old=window.upd;window.upd=function(){uppercaseModel();return old.apply(this,arguments)}}
-  }
+  function bindAll(){document.querySelectorAll('.editor input,.editor textarea').forEach(bind)}
   function apply(){if(busy)return;busy=true;requestAnimationFrame(()=>{bindAll();busy=false})}
-  function install(){injectStyle();patchRender();uppercaseModel();bindAll();const target=document.querySelector('.editor')||document.body;new MutationObserver(apply).observe(target,{childList:true,subtree:true})}
+  function install(){
+    injectStyle();bindAll();
+    const target=document.querySelector('.editor')||document.body;
+    new MutationObserver(apply).observe(target,{childList:true,subtree:true});
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,320));else setTimeout(install,320);
 })();
