@@ -1,4 +1,4 @@
-// Alan's United Auto - make discounts explicit on the quotation preview/PDF and section summary.
+// Alan's United Auto - explicit item/section/overall discount display in preview/PDF and section summary.
 (function(){
   let refreshing=false;
   function money(n){return Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -8,6 +8,21 @@
       const cards=[...document.querySelectorAll('#psecs .secprint')];
       S.forEach((sec,i)=>{
         const card=cards[i];if(!card)return;
+
+        // Per-item discount note beside description.
+        const lines=[...card.querySelectorAll('.line')];
+        (sec.items||[]).forEach((item,j)=>{
+          const line=lines[j];if(!line)return;
+          const desc=line.children[1];if(!desc)return;
+          let base=desc.dataset.auaBaseDesc;
+          if(!base){base=(desc.textContent||'').replace(/\s*\([^)]*discount\)\s*$/i,'').trim();desc.dataset.auaBaseDesc=base}
+          const v=Number(item.dv||0);
+          if(v>0&&!item.included){
+            desc.textContent=item.dt==='percent' ? `${base} (${v}% DISCOUNT)` : `${base} (S$ ${money(v)} DISCOUNT)`;
+          }else desc.textContent=base;
+        });
+
+        // Section discount label.
         const row=[...card.querySelectorAll('.adjust')].find(x=>/section discount/i.test(x.textContent||''));
         if(row){
           const value=Number(sec.dv||0),spans=row.children;
@@ -16,19 +31,16 @@
         }
       });
 
-      // Add discount note beside the relevant section name in the SECTION SUMMARY.
+      // Section summary discount note.
       const summary=document.getElementById('summaryBox');
       if(summary){
         const rows=[...summary.querySelectorAll('.summary-row')].filter(r=>!r.classList.contains('summary-total'));
         rows.forEach((r,i)=>{
           const sec=S[i],name=r.children[0];if(!sec||!name)return;
-          // Strip a label previously added by this script before rebuilding it.
           let base=name.dataset.auaBaseTitle;
           if(!base){base=(name.textContent||'').replace(/\s*\([^)]*discount\)\s*$/i,'').trim();name.dataset.auaBaseTitle=base}
           const v=Number(sec.dv||0);
-          if(v>0){
-            name.textContent=sec.dt==='percent' ? `${base} (${v}% DISCOUNT)` : `${base} (S$ ${money(v)} DISCOUNT)`;
-          }else name.textContent=base;
+          if(v>0){name.textContent=sec.dt==='percent'?`${base} (${v}% DISCOUNT)`:`${base} (S$ ${money(v)} DISCOUNT)`}else name.textContent=base;
         });
       }
 
