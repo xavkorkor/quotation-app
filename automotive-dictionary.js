@@ -3,6 +3,6 @@
   function load(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
   load('./automotive-dictionary-core.js')
     .then(()=>load('./scan-rules.js'))
-    .then(()=>load('./ai-scanner.js'))
+    .then(()=>load('./collated-list.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
