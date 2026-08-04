@@ -15,5 +15,6 @@
     .then(()=>load('./preview-editor.js'))
     .then(()=>load('./collated-input-safeguard.js'))
     .then(()=>load('./workflow-upgrades.js'))
+    .then(()=>load('./voice-quote.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
