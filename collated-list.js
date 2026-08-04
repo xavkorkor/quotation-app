@@ -5,7 +5,37 @@
   function escHtml(s){return String(s||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
   function cleanLine(s){return String(s||'').replace(/[•·]/g,' ').replace(/\t/g,' ').replace(/\s+/g,' ').trim()}
   function extractTopFields(lines){const fields={},patterns={customer:/^(?:customer(?:\s*name)?|name)\s*[:\-]\s*(.+)$/i,phone:/^(?:phone|mobile|contact|tel)\s*[:\-]\s*(.+)$/i,vehicle:/^(?:vehicle(?:\s*(?:no|number))?|car\s*(?:no|number)|registration|reg\s*no)\s*[:\-]\s*(.+)$/i,model:/^(?:model|vehicle\s*model|car\s*model)\s*[:\-]\s*(.+)$/i,mileage:/^(?:mileage|odo|odometer)\s*[:\-]\s*(.+)$/i};const consumed=new Set();lines.forEach((line,i)=>{for(const[k,rx]of Object.entries(patterns)){const m=line.match(rx);if(m){fields[k]=m[1].trim();consumed.add(i);break}}});return{fields,consumed}}
-  function parseQtyAndDesc(body){let q='1 pc',desc=body.trim(),m;const unitRx='pcs?|pc|sets?|set|bottles?|bottle|litres?|liters?|ltr|l|units?|unit|pairs?|pair|boxes?|box|packs?|pack|tins?|tin|cans?|can';const fmtUnit=(n,u)=>{u=String(u||'').toLowerCase();if(/^l(?:tr)?$|^lit/.test(u))return `${n} L`;if(/^pc/.test(u))return `${n} pcs`;if(/^set/.test(u))return `${n} set`;if(/^bottle/.test(u))return `${n} bottle`;if(/^unit/.test(u))return `${n} unit`;if(/^pair/.test(u))return `${n} pair`;if(/^box/.test(u))return `${n} box`;if(/^pack/.test(u))return `${n} pack`;if(/^tin/.test(u))return `${n} tin`;if(/^can/.test(u))return `${n} can`;return `${n} ${u}`};m=desc.match(/^x\s*([0-9]+(?:\.\d+)?)\b\s*/i);if(m){q=`${m[1]} pcs`;desc=desc.slice(m[0].length).trim();return{q,desc}}m=desc.match(/^([0-9]+(?:\.\d+)?)\s*x\b\s*/i);if(m){q=`${m[1]} pcs`;desc=desc.slice(m[0].length).trim();return{q,desc}}m=desc.match(new RegExp('^([0-9]+(?:\\.\\d+)?)\\s*('+unitRx+')\\b\\s*','i'));if(m){q=fmtUnit(m[1],m[2]);desc=desc.slice(m[0].length).trim();return{q,desc}}m=desc.match(/\s+x\s*([0-9]+(?:\.\d+)?)\s*$/i);if(m){q=`${m[1]} pcs`;desc=desc.slice(0,m.index).trim();return{q,desc}}m=desc.match(/\s+([0-9]+(?:\.\d+)?)\s*x\s*$/i);if(m){q=`${m[1]} pcs`;desc=desc.slice(0,m.index).trim();return{q,desc}}m=desc.match(new RegExp('\\s+([0-9]+(?:\\.\\d+)?)\\s*('+unitRx+')\\s*$','i'));if(m){q=fmtUnit(m[1],m[2]);desc=desc.slice(0,m.index).trim();return{q,desc}}m=desc.match(/^([0-9]+(?:\.\d+)?)\s+(?=[A-Za-z])/);if(m){q=m[1];desc=desc.slice(m[0].length).trim()}return{q,desc}}
+
+  function parseQtyAndDesc(body){
+    let q='1 pc',desc=body.trim(),m;
+    const unitRx='pcs?|pc|sets?|set|bottles?|bottle|litres?|liters?|ltr|l|units?|unit|pairs?|pair|boxes?|box|packs?|pack|tins?|tin|cans?|can';
+    const fmtUnit=(n,u)=>{u=String(u||'').toLowerCase();if(/^l(?:tr)?$|^lit/.test(u))return `${n} L`;if(/^pc/.test(u))return `${n} pcs`;if(/^set/.test(u))return `${n} set`;if(/^bottle/.test(u))return `${n} bottle`;if(/^unit/.test(u))return `${n} unit`;if(/^pair/.test(u))return `${n} pair`;if(/^box/.test(u))return `${n} box`;if(/^pack/.test(u))return `${n} pack`;if(/^tin/.test(u))return `${n} tin`;if(/^can/.test(u))return `${n} can`;return `${n} ${u}`};
+    function removeAt(match){desc=(desc.slice(0,match.index)+' '+desc.slice(match.index+match[0].length)).replace(/\s+/g,' ').trim()}
+
+    // Explicit xN / Nx quantity markers anywhere in the remaining description.
+    m=desc.match(/(?:^|\s)x\s*([0-9]+(?:\.\d+)?)(?=\s|$)/i);
+    if(m){q=`${m[1]} pcs`;removeAt(m);return{q,desc}}
+    m=desc.match(/(?:^|\s)([0-9]+(?:\.\d+)?)\s*x(?=\s|$)/i);
+    if(m){q=`${m[1]} pcs`;removeAt(m);return{q,desc}}
+
+    // Explicit unit quantities anywhere: 4pcs, 1set, 5L, etc.
+    m=desc.match(new RegExp('(?:^|\\s)([0-9]+(?:\\.\\d+)?)\\s*('+unitRx+')(?=\\s|$)','i'));
+    if(m){q=fmtUnit(m[1],m[2]);removeAt(m);return{q,desc}}
+
+    // After price extraction, a remaining small standalone integer is usually quantity
+    // in workshop lists (e.g. "ENG OIL PAN 5 ORI"). Keep obvious model/spec numbers intact.
+    const nums=[...desc.matchAll(/(?:^|\s)([1-9]|1[0-9]|20)(?=\s|$)/g)];
+    if(nums.length===1){
+      m=nums[0];
+      const before=desc.slice(0,m.index).trim(),after=desc.slice(m.index+m[0].length).trim();
+      const context=(before+' '+after).trim();
+      if(!/\b(?:m3|m4|m5|a3|a4|a5|q3|q5|x1|x3|x5|x6|x7|c3|c4|e[0-9]{2,3}|f[0-9]{2,3}|g[0-9]{2,3})\b/i.test(context)){
+        q=`${m[1]} pcs`;removeAt(m);return{q,desc};
+      }
+    }
+    return{q,desc};
+  }
+
   function findLikelyPrice(raw){const explicit=[...raw.matchAll(/(?:@\s*|S\$\s*|SGD\s*|\$\s*)([0-9][0-9,]*(?:\.\d{1,2})?)/ig)];if(explicit.length){const m=explicit[explicit.length-1],n=Number(m[1].replace(/,/g,''));return Number.isFinite(n)?{n,start:m.index,end:m.index+m[0].length}:null}const beforeQty=[...raw.matchAll(/(?:^|\s|[-–—:=])([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?=x\s*[0-9]+\b)/ig)];if(beforeQty.length){const m=beforeQty[beforeQty.length-1],token=m[1],n=Number(token.replace(/,/g,''));if(Number.isFinite(n)&&n>=5&&!(n>=1900&&n<=2100)){const rel=m[0].lastIndexOf(token),start=m.index+rel;return{n,start,end:start+token.length}}}const candidates=[],rx=/(^|\s|[-–—:=])([0-9][0-9,]*(?:\.\d{1,2})?)(?=$|\s|[-–—,:])/g;let m;while((m=rx.exec(raw))){const token=m[2],n=Number(token.replace(/,/g,''));if(!Number.isFinite(n)||n<5||(n>=1900&&n<=2100))continue;const start=m.index+m[1].length,end=start+token.length,before=raw.slice(Math.max(0,start-3),start),after=raw.slice(end,end+4);if(/[A-Za-z]$/.test(before)||/^[A-Za-z]/.test(after))continue;candidates.push({n,start,end})}return candidates.length?candidates[candidates.length-1]:null}
   function parseItem(line){let raw=cleanLine(line);if(!raw)return null;raw=raw.replace(/^[-–—]+\s*/,'').trim();let price=null,body=raw,priced=false;const hit=findLikelyPrice(raw);if(hit){price=hit.n;body=(raw.slice(0,hit.start)+' '+raw.slice(hit.end)).replace(/\s+/g,' ').trim();priced=true}body=body.replace(/\s*[-–—:=]\s*$/,'').replace(/^\s*[-–—:=]\s*/,'').trim();let{q,desc}=parseQtyAndDesc(body);if(!desc||desc.length<2)return null;if(NO_QTY_CONTEXT.test(desc))q='';return{q,d:desc,p:priced?String(price):'',priced,raw}}
   function parseCollated(text){const lines=String(text||'').split(/\r?\n/).map(cleanLine).filter(Boolean),{fields,consumed}=extractTopFields(lines),items=[];let pricedSeen=false;lines.forEach((line,i)=>{if(consumed.has(i))return;if(/^(subtotal|grand total|total|gst|tax|discount|quotation|quote|invoice)\b/i.test(line))return;const x=parseItem(line);if(!x)return;if(x.priced)pricedSeen=true;if(!pricedSeen&&!x.priced)return;if(!x.priced&&!document.getElementById('collatedIncluded')?.checked)return;x.included=!x.priced;items.push(x)});return{fields,groups:items.length?[{title:'REPAIR',items}]:[],count:items.length}}
