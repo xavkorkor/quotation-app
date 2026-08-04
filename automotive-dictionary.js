@@ -11,5 +11,6 @@
     .then(()=>load('./section-discount-menu.js'))
     .then(()=>load('./memory-sanitizer.js'))
     .then(()=>load('./discount-preview.js'))
+    .then(()=>load('./service-qty-display.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
