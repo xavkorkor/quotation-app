@@ -6,31 +6,36 @@
   function cleanLine(s){return String(s||'').replace(/[•·]/g,' ').replace(/\t/g,' ').replace(/\s+/g,' ').trim()}
   function extractTopFields(lines){const fields={},patterns={customer:/^(?:customer(?:\s*name)?|name)\s*[:\-]\s*(.+)$/i,phone:/^(?:phone|mobile|contact|tel)\s*[:\-]\s*(.+)$/i,vehicle:/^(?:vehicle(?:\s*(?:no|number))?|car\s*(?:no|number)|registration|reg\s*no)\s*[:\-]\s*(.+)$/i,model:/^(?:model|vehicle\s*model|car\s*model)\s*[:\-]\s*(.+)$/i,mileage:/^(?:mileage|odo|odometer)\s*[:\-]\s*(.+)$/i};const consumed=new Set();lines.forEach((line,i)=>{for(const[k,rx]of Object.entries(patterns)){const m=line.match(rx);if(m){fields[k]=m[1].trim();consumed.add(i);break}}});return{fields,consumed}}
 
+  // Generic quantity parser for ALL pasted items, not tied to specific automotive words.
+  // Supported anywhere in the remaining description: x2, 2x, 4pcs, 1set, 5L, etc.
   function parseQtyAndDesc(body){
     let q='1 pc',desc=body.trim(),m;
     const unitRx='pcs?|pc|sets?|set|bottles?|bottle|litres?|liters?|ltr|l|units?|unit|pairs?|pair|boxes?|box|packs?|pack|tins?|tin|cans?|can';
     const fmtUnit=(n,u)=>{u=String(u||'').toLowerCase();if(/^l(?:tr)?$|^lit/.test(u))return `${n} L`;if(/^pc/.test(u))return `${n} pcs`;if(/^set/.test(u))return `${n} set`;if(/^bottle/.test(u))return `${n} bottle`;if(/^unit/.test(u))return `${n} unit`;if(/^pair/.test(u))return `${n} pair`;if(/^box/.test(u))return `${n} box`;if(/^pack/.test(u))return `${n} pack`;if(/^tin/.test(u))return `${n} tin`;if(/^can/.test(u))return `${n} can`;return `${n} ${u}`};
-    function removeAt(match){desc=(desc.slice(0,match.index)+' '+desc.slice(match.index+match[0].length)).replace(/\s+/g,' ').trim()}
+    function strip(match){desc=(desc.slice(0,match.index)+' '+desc.slice(match.index+match[0].length)).replace(/\s+/g,' ').trim()}
 
-    // Explicit xN / Nx quantity markers anywhere in the remaining description.
-    m=desc.match(/(?:^|\s)x\s*([0-9]+(?:\.\d+)?)(?=\s|$)/i);
-    if(m){q=`${m[1]} pcs`;removeAt(m);return{q,desc}}
-    m=desc.match(/(?:^|\s)([0-9]+(?:\.\d+)?)\s*x(?=\s|$)/i);
-    if(m){q=`${m[1]} pcs`;removeAt(m);return{q,desc}}
+    // x2 / x 2 anywhere.
+    m=desc.match(/(?:^|\s|[,;()\-])x\s*([0-9]+(?:\.\d+)?)(?=\s|$|[,;()\-])/i);
+    if(m){q=`${m[1]} pcs`;strip(m);return{q,desc}}
 
-    // Explicit unit quantities anywhere: 4pcs, 1set, 5L, etc.
-    m=desc.match(new RegExp('(?:^|\\s)([0-9]+(?:\\.\\d+)?)\\s*('+unitRx+')(?=\\s|$)','i'));
-    if(m){q=fmtUnit(m[1],m[2]);removeAt(m);return{q,desc}}
+    // 2x / 2 x anywhere.
+    m=desc.match(/(?:^|\s|[,;()\-])([0-9]+(?:\.\d+)?)\s*x(?=\s|$|[,;()\-])/i);
+    if(m){q=`${m[1]} pcs`;strip(m);return{q,desc}}
 
-    // After price extraction, a remaining small standalone integer is usually quantity
-    // in workshop lists (e.g. "ENG OIL PAN 5 ORI"). Keep obvious model/spec numbers intact.
+    // 4pcs / 1 set / 5L anywhere.
+    m=desc.match(new RegExp('(?:^|\\s|[,;()\\-])([0-9]+(?:\\.\\d+)?)\\s*('+unitRx+')(?=\\s|$|[,;()\\-])','i'));
+    if(m){q=fmtUnit(m[1],m[2]);strip(m);return{q,desc}}
+
+    // If price has already been removed and there is exactly one small standalone integer left,
+    // treat it as a piece count. This is generic for any item, e.g. "SENSOR 4 ORI".
+    // Limit to 1-20 to avoid swallowing common part/model/spec numbers.
     const nums=[...desc.matchAll(/(?:^|\s)([1-9]|1[0-9]|20)(?=\s|$)/g)];
     if(nums.length===1){
       m=nums[0];
-      const before=desc.slice(0,m.index).trim(),after=desc.slice(m.index+m[0].length).trim();
-      const context=(before+' '+after).trim();
-      if(!/\b(?:m3|m4|m5|a3|a4|a5|q3|q5|x1|x3|x5|x6|x7|c3|c4|e[0-9]{2,3}|f[0-9]{2,3}|g[0-9]{2,3})\b/i.test(context)){
-        q=`${m[1]} pcs`;removeAt(m);return{q,desc};
+      const around=desc.toUpperCase();
+      // Protect obvious technical/model contexts where the number is likely part of a specification.
+      if(!/\b(?:5W\d{2}|0W\d{2}|10W\d{2}|12V|24V|48V|AH|MM|CM|INCH|R\d{2}|DOT\s*\d|SAE|API|MB\s*\d|BMW\s*LL|VW\s*\d)\b/i.test(around)){
+        q=`${m[1]} pcs`;strip(m);return{q,desc};
       }
     }
     return{q,desc};
@@ -42,6 +47,6 @@
   function prefill(fields){const map={customer:'customer',phone:'phone',vehicle:'vehicle',model:'model',mileage:'mileage'};Object.entries(map).forEach(([k,id])=>{const e=document.getElementById(id);if(e&&!e.value&&fields[k])e.value=k==='vehicle'?fields[k].replace(/\s/g,'').toUpperCase():fields[k]})}
   function preview(){const text=document.getElementById('collatedText')?.value||'',out=document.getElementById('collatedPreview');if(!text.trim()){out.innerHTML='<span class="small">Paste a list above to preview it.</span>';return null}const r=parseCollated(text);if(!r.count){out.innerHTML='<span class="small">No priced quotation items detected.</span>';return r}const g=r.groups[0];out.innerHTML=`<div style="font-size:11px;font-weight:700;margin-bottom:6px">${r.count} item${r.count===1?'':'s'} detected — will be imported as 1 repair section</div><div style="margin:6px 0">${g.items.map(x=>`<div style="display:grid;grid-template-columns:62px 1fr 72px;gap:6px;font-size:10.5px;padding:3px 0;border-bottom:1px solid #eef1f4"><span>${escHtml(x.q)}</span><span>${escHtml(x.d)}${x.included?' <em>(Included)</em>':''}</span><span style="text-align:right">${x.included?'':('$'+Number(x.p).toFixed(2))}</span></div>`).join('')}</div>`;return r}
   function fillQuote(){const r=preview();if(!r||!r.count)return;prefill(r.fields);const g=r.groups[0],imported=section({title:'REPAIR',items:g.items.map(x=>item({q:x.q,d:x.d,p:x.p,included:x.included}))});const mode=document.getElementById('collatedMode')?.value||'replace';if(mode==='append')S.push(imported);else S.splice(0,S.length,imported);render();upd();const status=document.getElementById('collatedStatus');if(status)status.textContent=`Added ${r.count} item${r.count===1?'':'s'} as one REPAIR section. You can split or rename sections manually afterwards.`;document.querySelector('.sections-panel')?.scrollIntoView({behavior:'smooth',block:'start'})}
-  function install(){const old=document.querySelector('.scan-panel');if(old)old.style.display='none';const settings=document.querySelector('.settings-panel');if(!settings||document.getElementById('collatedPanel'))return;const panel=document.createElement('div');panel.id='collatedPanel';panel.className='panel';panel.style.borderLeft='4px solid #2563eb';panel.innerHTML='<div class="panel-title" style="color:#1d4ed8">PASTE / IMPORT COLLATED LIST</div><textarea id="collatedText" rows="9" placeholder="Paste repair list here" style="display:block;width:100%;min-height:190px;box-sizing:border-box;resize:vertical;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#111827"></textarea><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div><label>Import Mode</label><select id="collatedMode"><option value="replace">Replace current items</option><option value="append">Add to current quotation</option></select></div><label style="display:flex;align-items:flex-end;gap:7px;padding-bottom:9px"><input id="collatedIncluded" type="checkbox" checked style="width:16px"> Unpriced lines after first value = Included</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px"><button id="collatedPreviewBtn" class="btn secondary">Preview Breakdown</button><button id="collatedFillBtn" class="btn primary">Fill as 1 Repair</button></div><div id="collatedPreview" style="margin-top:9px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc"><span class="small">Paste a list above to preview it.</span></div><div id="collatedStatus" class="small" style="margin-top:7px"></div>';settings.parentNode.insertBefore(panel,settings);document.getElementById('collatedPreviewBtn').onclick=preview;document.getElementById('collatedFillBtn').onclick=fillQuote}
+  function install(){const old=document.querySelector('.scan-panel');if(old)old.style.display='none';const settings=document.querySelector('.settings-panel');if(!settings||document.getElementById('collatedPanel'))return;const panel=document.createElement('div');panel.id='collatedPanel';panel.className='panel';panel.style.borderLeft='4px solid #2563eb';panel.innerHTML='<div class="panel-title" style="color:#1d4ed8">PASTE / IMPORT COLLATED LIST</div><textarea id="collatedText" rows="9" placeholder="Paste repair list here" style="display:block;width:100%;min-height:190px;box-sizing:border-box;resize:vertical;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#111827"></textarea><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div><label>Import Mode</label><select id="collatedMode"><option value="replace">Replace current items</option><option value="append">Add to current quotation</option></select></div><label style="display:flex;align-items:flex-end;gap:7px;padding-bottom:9px"><input id="collatedIncluded" type="checkbox" checked style="width:16px"> Unpriced lines after first value = Included</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px"><button id="collatedPreviewBtn" class="btn secondary">Preview Breakdown</button><button id="collatedFillBtn" class="btn primary">Fill as 1 Repair</button></div><div id="collatedPreview" style="margin-top:9px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc"><span class="small">Paste a list above to preview it.</span></div><div id="collatedStatus" class="small" style="margin-top:7px"></div>';settings.parentNode.insertBefore(panel,settings);document.getElementById('collatedPreviewBtn').onclick=preview;document.getElementById('collatedFillBtn').onclick=fillQuote)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,50));else setTimeout(install,50);
 })();
