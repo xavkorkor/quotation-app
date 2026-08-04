@@ -8,5 +8,6 @@
     .then(()=>load('./upgrade-suite.js'))
     .then(()=>load('./item-menu.js'))
     .then(()=>load('./typography-uppercase.js'))
+    .then(()=>load('./section-discount-menu.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
