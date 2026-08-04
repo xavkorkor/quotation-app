@@ -4,6 +4,6 @@
   load('./automotive-dictionary-core.js')
     .then(()=>load('./scan-rules.js'))
     .then(()=>load('./collated-list.js'))
-    .then(()=>load('./item-ui-polish.js'))
+    .then(()=>load('./section-layout.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
