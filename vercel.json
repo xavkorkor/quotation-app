@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/scan-quote.js": {
+      "maxDuration": 60
+    }
+  }
+}
