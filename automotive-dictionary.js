@@ -6,5 +6,6 @@
     .then(()=>load('./collated-list.js'))
     .then(()=>load('./section-layout.js'))
     .then(()=>load('./upgrade-suite.js'))
+    .then(()=>load('./item-hide-memory-reset.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
