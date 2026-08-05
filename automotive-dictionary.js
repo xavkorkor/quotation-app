@@ -17,5 +17,6 @@
     .then(()=>load('./workflow-upgrades.js'))
     .then(()=>load('./voice-quote.js'))
     .then(()=>load('./pricing-integrity.js'))
+    .then(()=>load('./calculation-audit.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
