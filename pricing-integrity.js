@@ -1,6 +1,6 @@
 // Alan's United Auto - pricing integrity fix.
-// Service/labour/diagnostic lines with blank or 0 quantity still charge once,
-// while their quotation quantity remains visually blank. Rebuilds section summary and totals from source data.
+// Any non-included item with a unit price must contribute to its section and quotation total.
+// Blank or 0 quantity is treated as one charge. Service/labour/diagnostic quantities remain visually blank.
 (function(){
   const NO_QTY=/labou?r|workmanship|diagnos|inspection fee|outside service|program|coding|calibrat|road test|service charge/i;
   const $=id=>document.getElementById(id);
@@ -8,11 +8,11 @@
   const num=v=>{const n=parseFloat(String(v??'').replace(/[^0-9.-]/g,''));return Number.isFinite(n)?n:0};
   const money=n=>'S$ '+Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
   function discount(base,type,value){const v=Math.max(0,num(value));return Math.min(base,type==='percent'?base*v/100:v)}
-  function effectiveQty(item){const raw=num(item?.q);if(NO_QTY.test(String(item?.d||'')))return raw>0?raw:1;return raw>0?raw:0}
-  function itemNet(item){if(!item||item.included)return 0;const base=effectiveQty(item)*Math.max(0,num(item.p));return Math.max(0,base-discount(base,item.dt,item.dv))}
+  function effectiveQty(item){const raw=num(item?.q),price=Math.max(0,num(item?.p));if(raw>0)return raw;return price>0?1:0}
+  function itemNet(item){if(!item||item.included)return 0;const price=Math.max(0,num(item.p));if(price<=0)return 0;const base=effectiveQty(item)*price;return Math.max(0,base-discount(base,item.dt,item.dv))}
   function sectionCalc(sec){const gross=(sec?.items||[]).reduce((s,x)=>s+itemNet(x),0);const d=discount(gross,sec?.dt,sec?.dv);return {gross,discount:d,net:Math.max(0,gross-d)}}
   function getSections(){try{return (typeof S!=='undefined'&&Array.isArray(S))?S:[]}catch{return[]}}
-  function updateLines(sections){const cards=[...document.querySelectorAll('#psecs .secprint')];cards.forEach((card,si)=>{const sec=sections[si];if(!sec)return;const lines=[...card.querySelectorAll('.line')];(sec.items||[]).forEach((item,ii)=>{const line=lines[ii];if(!line)return;const cells=[...line.children];if(cells[0]&&NO_QTY.test(String(item.d||'')))cells[0].textContent='';if(cells[3]&&!item.included)cells[3].textContent=money(itemNet(item));});});}
+  function updateLines(sections){const cards=[...document.querySelectorAll('#psecs .secprint')];cards.forEach((card,si)=>{const sec=sections[si];if(!sec)return;const lines=[...card.querySelectorAll('.line')];(sec.items||[]).forEach((item,ii)=>{const line=lines[ii];if(!line)return;const cells=[...line.children];if(cells[0]&&NO_QTY.test(String(item.d||'')))cells[0].textContent='';if(cells[3])cells[3].textContent=item.included?'INCLUDED':money(itemNet(item));});});}
   function updateMiniTotals(sections){document.querySelectorAll('.section-card').forEach((card,si)=>{const el=card.querySelector('.section-mini-total');if(el&&sections[si])el.textContent=money(sectionCalc(sections[si]).net)});}
   function summaryLabel(sec,calc){let label=String(sec?.title||'SECTION').toUpperCase();const v=num(sec?.dv);if(calc.discount>0){label+=sec?.dt==='percent'?` (${v}% DISCOUNT)`:` (${money(calc.discount)} DISCOUNT)`}return label}
   function updateSummary(sections,calcs,subtotal){const box=$('summaryBox'),on=$('summaryOn');if(!box)return;if(on&&!on.checked){box.style.display='none';box.innerHTML='';return}box.style.display='block';box.innerHTML='<div class="summary-head"><span>SECTION SUMMARY</span><span style="text-align:right">AMOUNT</span></div>'+sections.map((sec,i)=>`<div class="summary-row"><span>${escapeHtml(summaryLabel(sec,calcs[i]))}</span><span style="text-align:right">${money(calcs[i].net)}</span></div>`).join('')+`<div class="summary-row summary-total"><span>TOTAL</span><span style="text-align:right">${money(subtotal)}</span></div>`;}
