@@ -33,7 +33,7 @@
         <div class="toolbar"><button id="cloudSave" class="btn primary" type="button">Save Online</button><button id="cloudRefresh" class="btn secondary" type="button">Refresh Online</button></div>
         <div class="toolbar"><button id="cloudExport" class="btn outline" type="button">Export JSON</button><button id="cloudSignOut" class="btn outline" type="button">Sign Out</button></div>
       </div>
-      <div id="cloudStatus" class="cloud-status">Sign in to sync quotations across devices.</div>`;
+      <div id="cloudStatus" class="cloud-status">Sign in to access the shared staff quotations.</div>`;
     const recent=document.querySelector('.recent-panel');
     if(recent)recent.before(panel);else document.querySelector('.editor')?.appendChild(panel);
     const style=document.createElement('style');
@@ -58,8 +58,9 @@
 
   function recordKey(data){
     const vehicle=String(data.vehicle||'').trim().toLowerCase();
-    if(vehicle)return vehicle;
-    return [data.customer,data.date].map(v=>String(v||'').trim().toLowerCase()).join('|');
+    const customer=String(data.customer||'').trim().toLowerCase();
+    if(vehicle)return `${customer}|${vehicle}`;
+    return [customer,data.date].map(v=>String(v||'').trim().toLowerCase()).join('|');
   }
 
   function onlineRow(data,total,updatedAt){
@@ -83,7 +84,7 @@
       return false;
     }
     const data=state(),summary=totals(),row=onlineRow(data,summary.grand);
-    const {error}=await client.from('quotations').upsert(row,{onConflict:'user_id,record_key'});
+    const {error}=await client.from('quotations').upsert(row,{onConflict:'record_key'});
     if(error)throw error;
     if(!options.silent)cloudStatus(`Saved online${data.vehicle?' for '+data.vehicle:''}.`,'success');
     return true;
@@ -94,7 +95,7 @@
     const records=getRecent();
     if(!records.length)return;
     const rows=records.map(r=>onlineRow(r.data||{},r.total,r.ts?new Date(r.ts).toISOString():undefined));
-    const {error}=await client.from('quotations').upsert(rows,{onConflict:'user_id,record_key'});
+    const {error}=await client.from('quotations').upsert(rows,{onConflict:'record_key'});
     if(error)throw error;
   }
 
@@ -116,7 +117,7 @@
     const path=`${user.id}/${key}/${Date.now()}-${pdfFileName()}`;
     const {error}=await client.storage.from(CONFIG.bucket).upload(path,blob,{contentType:'application/pdf',upsert:false});
     if(error)throw error;
-    const {error:updateError}=await client.from('quotations').update({pdf_path:path,updated_at:new Date().toISOString()}).eq('user_id',user.id).eq('record_key',recordKey(data));
+    const {error:updateError}=await client.from('quotations').update({pdf_path:path,updated_at:new Date().toISOString()}).eq('record_key',recordKey(data));
     if(updateError)throw updateError;
     cloudStatus('Quotation and PDF saved online.','success');
   }
@@ -155,10 +156,10 @@
     if(syncing)return;
     syncing=true;
     try{
-      cloudStatus('Syncing local quotations online…');
+      cloudStatus('Syncing local quotations to the shared database…');
       await migrateLocal();
       await refreshOnline({silent:true});
-      cloudStatus('Online storage is ready.','success');
+      cloudStatus('Shared online storage is ready.','success');
     }catch(error){cloudStatus(error.message||'Unable to sync online.','error')}
     finally{syncing=false}
   }
