@@ -34,8 +34,8 @@
         <div class="toolbar"><button id="cloudExport" class="btn outline" type="button">Export JSON</button><button id="cloudSignOut" class="btn outline" type="button">Sign Out</button></div>
       </div>
       <div id="cloudStatus" class="cloud-status">Sign in to access the shared staff quotations.</div>`;
-    const recent=document.querySelector('.recent-panel');
-    if(recent)recent.before(panel);else document.querySelector('.editor')?.appendChild(panel);
+    const editor=document.querySelector('.editor');
+    if(editor)editor.prepend(panel);
     const style=document.createElement('style');
     style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
     document.head.appendChild(style);
