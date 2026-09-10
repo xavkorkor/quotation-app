@@ -4,7 +4,7 @@
     key:'sb_publishable_d0-OUsZ6JbSECgn8uNcSrw_f3Xazwk3',
     bucket:'quotation-files'
   };
-  let client=null,user=null,syncing=false;
+  let client=null,user=null,syncing=false,onlineRecords=[];
   let localSaveRecent=null,localSaveRecord=null,localMakePdfBlob=null;
 
   function cloudStatus(message,tone='normal'){
@@ -31,18 +31,26 @@
       <div id="cloudSignedIn" hidden>
         <div id="cloudUser" class="small"></div>
         <div class="toolbar"><button id="cloudSave" class="btn primary" type="button">Save Online</button><button id="cloudRefresh" class="btn secondary" type="button">Refresh Online</button></div>
-        <div class="toolbar"><button id="cloudExport" class="btn outline" type="button">Export JSON</button><button id="cloudSignOut" class="btn outline" type="button">Sign Out</button></div>
+        <div class="toolbar"><button id="cloudRecordsTab" class="btn secondary" type="button">All Records</button><button id="cloudExport" class="btn outline" type="button">Export JSON</button></div>
+        <button id="cloudSignOut" class="btn outline cloud-sign-out" type="button">Sign Out</button>
+        <div id="cloudRecordsPanel" class="cloud-records-panel" hidden>
+          <div class="panel-title">ALL SHARED RECORDS</div>
+          <input id="cloudRecordSearch" type="search" placeholder="Search by vehicle number" aria-label="Search all online records by vehicle number">
+          <div id="cloudRecordList" class="cloud-record-list"><div class="small">Open this tab to load the shared records.</div></div>
+        </div>
       </div>
       <div id="cloudStatus" class="cloud-status">Sign in to access the shared staff quotations.</div>`;
     const editor=document.querySelector('.editor');
     if(editor)editor.prepend(panel);
     const style=document.createElement('style');
-    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
+    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-sign-out{width:100%;margin-top:9px}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}.cloud-records-panel{margin-top:10px;padding-top:10px;border-top:1px solid #cbdff5}.cloud-record-list{display:grid;gap:6px;max-height:340px;overflow:auto;margin-top:8px}.cloud-record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #dbe4ef;border-radius:9px;background:#fff}.cloud-record-name{font-size:12px;font-weight:700}.cloud-record-meta{font-size:10.5px;color:#667085;margin-top:2px}.cloud-record-total{font-size:11px;font-weight:700;color:#334155;margin-bottom:5px;text-align:right}.cloud-record-open{padding:6px 10px;font-size:11px}.cloud-tab-active{background:#dbeafe;color:#1d4ed8}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
     document.head.appendChild(style);
     document.getElementById('cloudSignIn').onclick=signIn;
     document.getElementById('cloudSignUp').onclick=signUp;
     document.getElementById('cloudSave').onclick=()=>saveCurrentQuote();
     document.getElementById('cloudRefresh').onclick=()=>refreshOnline();
+    document.getElementById('cloudRecordsTab').onclick=()=>toggleAllRecords().catch(error=>cloudStatus(error.message||'Unable to load online records.','error'));
+    document.getElementById('cloudRecordSearch').addEventListener('input',renderAllRecords);
     document.getElementById('cloudExport').onclick=()=>localSaveRecord?.();
     document.getElementById('cloudSignOut').onclick=signOut;
   }
@@ -51,9 +59,42 @@
     const signedIn=!!user;
     document.getElementById('cloudSignedOut').hidden=signedIn;
     document.getElementById('cloudSignedIn').hidden=!signedIn;
+    if(!signedIn){document.getElementById('cloudRecordsPanel').hidden=true;document.getElementById('cloudRecordsTab').classList.remove('cloud-tab-active');onlineRecords=[]}
     document.getElementById('cloudUser').textContent=signedIn?`Signed in as ${user.email||'staff user'}`:'';
     const mainSave=document.querySelector('button[onclick="saveRecord()"]');
     if(mainSave)mainSave.textContent='Save Online';
+  }
+
+  function escapeHtml(value){
+    return String(value??'').replace(/[&<>\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[char]));
+  }
+
+  function renderAllRecords(){
+    const list=document.getElementById('cloudRecordList');
+    if(!list)return;
+    const query=String(document.getElementById('cloudRecordSearch')?.value||'').trim().toLowerCase();
+    const matches=onlineRecords.map((record,index)=>({record,index})).filter(({record})=>!query||String(record.data?.vehicle||'').toLowerCase().includes(query));
+    list.innerHTML=matches.length?matches.map(({record,index})=>{
+      const data=record.data||{},total=Number(record.total||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
+      return `<div class="cloud-record"><div><div class="cloud-record-name">${escapeHtml(data.customer||'Unnamed customer')}${data.vehicle?' · '+escapeHtml(data.vehicle):''}</div><div class="cloud-record-meta">${escapeHtml(data.date||'No date')}${data.model?' · '+escapeHtml(data.model):''}</div></div><div><div class="cloud-record-total">S$ ${total}</div><button class="btn primary cloud-record-open" type="button" data-cloud-record="${index}">Open</button></div></div>`;
+    }).join(''):`<div class="small">${onlineRecords.length?'No matching vehicle numbers.':'No online quotations yet.'}</div>`;
+    list.querySelectorAll('[data-cloud-record]').forEach(button=>button.onclick=()=>openOnlineRecord(Number(button.dataset.cloudRecord)));
+  }
+
+  function openOnlineRecord(index){
+    const record=onlineRecords[index];
+    if(!record)return;
+    loadRecord(record.data||{});
+    cloudStatus(`Opened${record.data?.vehicle?' '+record.data.vehicle:''} from shared records.`,'success');
+    document.querySelector('.customer-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  async function toggleAllRecords(){
+    if(!user)return;
+    const panel=document.getElementById('cloudRecordsPanel'),button=document.getElementById('cloudRecordsTab'),opening=panel.hidden;
+    panel.hidden=!opening;
+    button.classList.toggle('cloud-tab-active',opening);
+    if(opening){await refreshOnline({silent:true});renderAllRecords()}
   }
 
   function recordKey(data){
@@ -102,11 +143,13 @@
   async function refreshOnline(options={}){
     if(!user)return;
     if(!options.silent)cloudStatus('Loading online quotations…');
-    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at').order('updated_at',{ascending:false}).limit(100);
+    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at').order('updated_at',{ascending:false}).limit(500);
     if(error)throw error;
-    const recent=(data||[]).map(r=>({key:r.record_key,ts:new Date(r.updated_at).getTime(),total:Number(r.total||0),data:r.data||{}}));
+    onlineRecords=data||[];
+    const recent=onlineRecords.map(r=>({key:r.record_key,ts:new Date(r.updated_at).getTime(),total:Number(r.total||0),data:r.data||{}}));
     localStorage.setItem(RECENTKEY,JSON.stringify(recent));
     renderRecent();
+    renderAllRecords();
     if(!options.silent)cloudStatus(`Loaded ${recent.length} online quotation${recent.length===1?'':'s'}.`,'success');
   }
 
