@@ -31,6 +31,5 @@
     .then(()=>load('./calculation-audit.js'))
     .then(()=>load('./history-enhancements.js'))
     .then(()=>load('./history-spacing-polish.js'))
-    .then(()=>load('./staff-attribution.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
