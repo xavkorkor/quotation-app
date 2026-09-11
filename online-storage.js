@@ -26,7 +26,7 @@
           <div><label>Staff Email</label><input id="cloudEmail" type="email" autocomplete="username" data-preserve-case placeholder="name@example.com"></div>
           <div><label>Password</label><input id="cloudPassword" type="password" autocomplete="current-password" data-preserve-case placeholder="Password"></div>
         </div>
-        <div class="toolbar"><button id="cloudSignIn" class="btn primary" type="button">Sign In</button><button id="cloudSignUp" class="btn secondary" type="button">Create Account</button></div>
+        <div class="toolbar"><button id="cloudSignIn" class="btn primary" type="button">Sign In</button></div>
       </div>
       <div id="cloudSignedIn" hidden>
         <div id="cloudUser" class="small"></div>
@@ -43,10 +43,9 @@
     const editor=document.querySelector('.editor');
     if(editor)editor.prepend(panel);
     const style=document.createElement('style');
-    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-sign-out{width:100%;margin-top:9px}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}.cloud-records-panel{margin-top:10px;padding-top:10px;border-top:1px solid #cbdff5}.cloud-record-list{display:grid;gap:6px;max-height:340px;overflow:auto;margin-top:8px}.cloud-record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #dbe4ef;border-radius:9px;background:#fff}.cloud-record-name{font-size:12px;font-weight:700}.cloud-record-meta{font-size:10.5px;color:#667085;margin-top:2px}.cloud-record-total{font-size:11px;font-weight:700;color:#334155;margin-bottom:5px;text-align:right}.cloud-record-open{padding:6px 10px;font-size:11px}.cloud-tab-active{background:#dbeafe;color:#1d4ed8}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
+    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-sign-out{width:100%;margin-top:9px}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}.cloud-records-panel{margin-top:10px;padding-top:10px;border-top:1px solid #cbdff5}.cloud-record-list{display:grid;gap:6px;max-height:340px;overflow:auto;margin-top:8px}.cloud-record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #dbe4ef;border-radius:9px;background:#fff}.cloud-record-name{font-size:12px;font-weight:700}.cloud-record-meta{font-size:10.5px;color:#667085;margin-top:2px}.cloud-record-total{font-size:11px;font-weight:700;color:#334155;margin-bottom:5px;text-align:right}.cloud-record-actions{display:flex;gap:5px}.cloud-record-open,.cloud-record-delete{padding:6px 10px;font-size:11px}.cloud-record-delete{border-color:#fecaca;color:#b42318;background:#fff}.cloud-record-delete:hover{background:#fef2f2}.cloud-tab-active{background:#dbeafe;color:#1d4ed8}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
     document.head.appendChild(style);
     document.getElementById('cloudSignIn').onclick=signIn;
-    document.getElementById('cloudSignUp').onclick=signUp;
     document.getElementById('cloudSave').onclick=()=>saveCurrentQuote();
     document.getElementById('cloudRefresh').onclick=()=>refreshOnline();
     document.getElementById('cloudRecordsTab').onclick=()=>toggleAllRecords().catch(error=>cloudStatus(error.message||'Unable to load online records.','error'));
@@ -76,9 +75,10 @@
     const matches=onlineRecords.map((record,index)=>({record,index})).filter(({record})=>!query||String(record.data?.vehicle||'').toLowerCase().includes(query));
     list.innerHTML=matches.length?matches.map(({record,index})=>{
       const data=record.data||{},total=Number(record.total||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
-      return `<div class="cloud-record"><div><div class="cloud-record-name">${escapeHtml(data.customer||'Unnamed customer')}${data.vehicle?' · '+escapeHtml(data.vehicle):''}</div><div class="cloud-record-meta">${escapeHtml(data.date||'No date')}${data.model?' · '+escapeHtml(data.model):''}</div></div><div><div class="cloud-record-total">S$ ${total}</div><button class="btn primary cloud-record-open" type="button" data-cloud-record="${index}">Open</button></div></div>`;
+      return `<div class="cloud-record"><div><div class="cloud-record-name">${escapeHtml(data.customer||'Unnamed customer')}${data.vehicle?' · '+escapeHtml(data.vehicle):''}</div><div class="cloud-record-meta">${escapeHtml(data.date||'No date')}${data.model?' · '+escapeHtml(data.model):''}</div></div><div><div class="cloud-record-total">S$ ${total}</div><div class="cloud-record-actions"><button class="btn primary cloud-record-open" type="button" data-cloud-open="${index}">Open</button><button class="btn outline cloud-record-delete" type="button" data-cloud-delete="${index}">Delete</button></div></div></div>`;
     }).join(''):`<div class="small">${onlineRecords.length?'No matching vehicle numbers.':'No online quotations yet.'}</div>`;
-    list.querySelectorAll('[data-cloud-record]').forEach(button=>button.onclick=()=>openOnlineRecord(Number(button.dataset.cloudRecord)));
+    list.querySelectorAll('[data-cloud-open]').forEach(button=>button.onclick=()=>openOnlineRecord(Number(button.dataset.cloudOpen)));
+    list.querySelectorAll('[data-cloud-delete]').forEach(button=>button.onclick=()=>deleteOnlineRecord(Number(button.dataset.cloudDelete),button));
   }
 
   function openOnlineRecord(index){
@@ -87,6 +87,29 @@
     loadRecord(record.data||{});
     cloudStatus(`Opened${record.data?.vehicle?' '+record.data.vehicle:''} from shared records.`,'success');
     document.querySelector('.customer-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  async function deleteOnlineRecord(index,button){
+    const record=onlineRecords[index];
+    if(!record)return;
+    const data=record.data||{},name=data.vehicle||data.customer||'this quotation';
+    if(!confirm(`Delete ${name} from the shared records? This cannot be undone.`))return;
+    button.disabled=true;
+    button.textContent='Deleting…';
+    try{
+      const {error}=await client.from('quotations').delete().eq('record_key',record.record_key);
+      if(error)throw error;
+      if(record.pdf_path){
+        const {error:fileError}=await client.storage.from(CONFIG.bucket).remove([record.pdf_path]);
+        if(fileError)console.warn('The quotation record was deleted, but its PDF could not be removed.',fileError);
+      }
+      await refreshOnline({silent:true});
+      cloudStatus(`Deleted ${name} from shared records.`,'success');
+    }catch(error){
+      button.disabled=false;
+      button.textContent='Delete';
+      cloudStatus(error.message||'Unable to delete this quotation.','error');
+    }
   }
 
   async function toggleAllRecords(){
@@ -143,7 +166,7 @@
   async function refreshOnline(options={}){
     if(!user)return;
     if(!options.silent)cloudStatus('Loading online quotations…');
-    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at').order('updated_at',{ascending:false}).limit(500);
+    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at,pdf_path').order('updated_at',{ascending:false}).limit(500);
     if(error)throw error;
     onlineRecords=data||[];
     const recent=onlineRecords.map(r=>({key:r.record_key,ts:new Date(r.updated_at).getTime(),total:Number(r.total||0),data:r.data||{}}));
@@ -173,17 +196,6 @@
     const {error}=await client.auth.signInWithPassword({email,password});
     if(error){cloudStatus(error.message,'error');return}
     document.getElementById('cloudPassword').value='';
-  }
-
-  async function signUp(){
-    const email=document.getElementById('cloudEmail').value.trim();
-    const password=document.getElementById('cloudPassword').value;
-    if(!email||password.length<8){cloudStatus('Enter an email and a password of at least 8 characters.','error');return}
-    cloudStatus('Creating staff account…');
-    const {data,error}=await client.auth.signUp({email,password});
-    if(error){cloudStatus(error.message,'error');return}
-    document.getElementById('cloudPassword').value='';
-    cloudStatus(data.session?'Account created and signed in.':'Check your email to confirm the new account.','success');
   }
 
   async function signOut(){
