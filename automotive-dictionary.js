@@ -36,6 +36,7 @@
     .then(()=>load('./quote-workflow.js'))
     .then(()=>load('./history-tools.js'))
     .then(()=>load('./history-status-polish.js'))
+    .then(()=>load('./history-quote-search.js'))
     .then(()=>load('./unsaved-protection.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
