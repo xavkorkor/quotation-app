@@ -10,10 +10,9 @@
 
   function generateQuoteNumber(){
     const d=new Date();
-    const date=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+    const date=`${String(d.getFullYear()).slice(-2)}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
     const time=`${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    const tail=String(d.getMilliseconds()).padStart(3,'0');
-    return `AUA${date}${time}${tail}`;
+    return `AUA${date}${time}`;
   }
 
   function ensureMeta(){
