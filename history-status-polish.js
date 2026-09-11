@@ -113,14 +113,14 @@
     if(!selected){existing?.remove();return}
     const record=recordForKey(selected.dataset.auaKey);
     if(!record){existing?.remove();return}
+    if(existing?.dataset?.auaKey===selected.dataset.auaKey)return;
+    existing?.remove();
 
-    let editor=existing;
-    if(!editor){
-      editor=document.createElement('div');
-      editor.className='aua-inline-status-editor';
-      const stats=preview.querySelector('.aua-history-stats');
-      if(stats)preview.insertBefore(editor,stats);else preview.prepend(editor);
-    }
+    const editor=document.createElement('div');
+    editor.className='aua-inline-status-editor';
+    editor.dataset.auaKey=selected.dataset.auaKey;
+    const stats=preview.querySelector('.aua-history-stats');
+    if(stats)preview.insertBefore(editor,stats);else preview.prepend(editor);
     const status=statusFor(record);
     editor.innerHTML=`<label>Edit Status</label><div class="aua-inline-status-row"><select id="auaInlineStatusSelect">${STATUS.map(x=>`<option value="${x}"${x===status?' selected':''}>${x}</option>`).join('')}</select><button id="auaInlineStatusSave" class="btn primary" type="button">Save Status</button></div><div id="auaInlineStatusMessage" class="aua-inline-status-message"></div>`;
     const select=byId('auaInlineStatusSelect'),button=byId('auaInlineStatusSave'),message=byId('auaInlineStatusMessage');
