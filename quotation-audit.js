@@ -6,6 +6,7 @@
   };
   const emptyAudit=()=>({createdBy:'',createdAt:'',lastEditedBy:'',lastEditedAt:'',legacy:false});
   let auditMeta=emptyAudit();
+  let lastStampMs=0;
 
   function currentStaff(){
     const label=String(document.getElementById('cloudUser')?.textContent||'').trim();
@@ -20,9 +21,6 @@
     const createdAt=String(a.createdAt||'').trim();
     let lastEditedBy=String(a.lastEditedBy||source?.savedBy||source?.lastUpdatedBy||'').trim();
     let lastEditedAt=String(a.lastEditedAt||'').trim();
-
-    // Older audit builds stamped creator and editor at the same moment.
-    // Treat that as creation-only so History does not falsely show an edit.
     if(createdBy&&lastEditedBy===createdBy&&createdAt&&lastEditedAt){
       const gap=Math.abs(new Date(lastEditedAt).getTime()-new Date(createdAt).getTime());
       if(Number.isFinite(gap)&&gap<5000){lastEditedBy='';lastEditedAt=''}
@@ -33,7 +31,10 @@
   function stampSave(){
     const staff=currentStaff();
     if(!staff)return;
-    const now=new Date().toISOString();
+    const nowMs=Date.now();
+    if(nowMs-lastStampMs<1500)return;
+    lastStampMs=nowMs;
+    const now=new Date(nowMs).toISOString();
     if(!auditMeta.createdBy){
       auditMeta.createdBy=staff;
       auditMeta.createdAt=now;
@@ -59,36 +60,25 @@
 
     state=function(){
       const data=baseState();
-      data.audit={
-        createdBy:auditMeta.createdBy,
-        createdAt:auditMeta.createdAt,
-        lastEditedBy:auditMeta.lastEditedBy,
-        lastEditedAt:auditMeta.lastEditedAt
-      };
+      data.audit={createdBy:auditMeta.createdBy,createdAt:auditMeta.createdAt,lastEditedBy:auditMeta.lastEditedBy,lastEditedAt:auditMeta.lastEditedAt};
       return data;
     };
     state.__auaAuditStableV2=true;
 
     loadRecord=function(data){
-      auditMeta=cleanAudit(data||{});
+      auditMeta=cleanAudit(data||{});lastStampMs=0;
       return baseLoadRecord(data);
     };
     newQuote=function(){
-      auditMeta=emptyAudit();
+      auditMeta=emptyAudit();lastStampMs=0;
       return baseNewQuote();
     };
     duplicateQuote=function(){
-      auditMeta=emptyAudit();
+      auditMeta=emptyAudit();lastStampMs=0;
       return baseDuplicateQuote();
     };
-    saveRecord=function(){
-      stampSave();
-      return baseSaveRecord.apply(this,arguments);
-    };
-    saveRecent=function(){
-      stampSave();
-      return baseSaveRecent.apply(this,arguments);
-    };
+    saveRecord=function(){stampSave();return baseSaveRecord.apply(this,arguments)};
+    saveRecent=function(){stampSave();return baseSaveRecent.apply(this,arguments)};
     return true;
   }
 
@@ -101,16 +91,12 @@
     return true;
   }
 
-  function auditForRecord(record){
-    return cleanAudit(record?.data||{});
-  }
-
+  function auditForRecord(record){return cleanAudit(record?.data||{})}
   function displayAudit(audit){
     if(audit.lastEditedBy)return{label:'Last edited by',name:audit.lastEditedBy};
     if(audit.createdBy)return{label:'Made by',name:audit.createdBy};
     return{label:'Made by',name:'Not recorded'};
   }
-
   function getRecord(key){
     try{return (typeof getRecent==='function'?getRecent():[]).find(r=>String(r?.key||'')===String(key||''))}catch{return null}
   }
@@ -139,7 +125,6 @@
       if(!line){line=document.createElement('span');line.className='aua-history-audit-line';cell.appendChild(line)}
       line.textContent=`${view.label} ${view.name}`;
     });
-
     const selected=overlay.querySelector('.aua-history-row.selected[data-aua-key]');
     const preview=document.getElementById('auaHistoryPreview');
     if(!preview)return;
@@ -147,12 +132,7 @@
     if(!selected){old?.remove();return}
     const view=displayAudit(auditForRecord(getRecord(selected.dataset.auaKey)));
     let card=old;
-    if(!card){
-      card=document.createElement('div');
-      card.className='aua-history-audit-card';
-      const stats=preview.querySelector('.aua-history-stats');
-      if(stats)preview.insertBefore(card,stats);else preview.prepend(card);
-    }
+    if(!card){card=document.createElement('div');card.className='aua-history-audit-card';const stats=preview.querySelector('.aua-history-stats');if(stats)preview.insertBefore(card,stats);else preview.prepend(card)}
     card.innerHTML=`<span>${view.label}</span><b>${view.name}</b>`;
   }
 
@@ -177,6 +157,5 @@
     const historyReady=installHistoryHooks();
     if(!dataReady||!cloudReady||!historyReady)setTimeout(install,250);
   }
-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
