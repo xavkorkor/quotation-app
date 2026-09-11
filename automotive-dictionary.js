@@ -13,7 +13,6 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
   else disableCustomerVehicleHistory();
   load('./automotive-dictionary-core.js')
-    .then(()=>load('./scan-rules.js'))
     .then(()=>load('./section-layout.js'))
     .then(()=>load('./upgrade-suite.js'))
     .then(()=>load('./item-menu.js'))
@@ -33,5 +32,6 @@
     .then(()=>load('./quote-workflow.js'))
     .then(()=>load('./history-tools.js'))
     .then(()=>load('./unsaved-protection.js'))
+    .then(()=>load('./cloud-record-integrity.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
