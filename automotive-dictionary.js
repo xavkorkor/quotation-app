@@ -14,7 +14,6 @@
   else disableCustomerVehicleHistory();
   load('./automotive-dictionary-core.js')
     .then(()=>load('./scan-rules.js'))
-    .then(()=>load('./collated-list.js'))
     .then(()=>load('./section-layout.js'))
     .then(()=>load('./upgrade-suite.js'))
     .then(()=>load('./item-menu.js'))
@@ -24,7 +23,6 @@
     .then(()=>load('./discount-preview.js'))
     .then(()=>load('./service-qty-display.js'))
     .then(()=>load('./preview-editor.js'))
-    .then(()=>load('./collated-input-safeguard.js'))
     .then(()=>load('./workflow-upgrades.js'))
     .then(()=>load('./voice-quote.js'))
     .then(()=>load('./pricing-integrity.js'))
@@ -35,8 +33,6 @@
     .then(()=>load('./startup-fresh-quote.js'))
     .then(()=>load('./quote-workflow.js'))
     .then(()=>load('./history-tools.js'))
-    .then(()=>load('./history-status-polish.js'))
-    .then(()=>load('./history-quote-search.js'))
     .then(()=>load('./unsaved-protection.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
