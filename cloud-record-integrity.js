@@ -53,6 +53,16 @@
     localStorage.setItem(LOCAL_KEY,JSON.stringify(list.slice(0,100)));
   }
 
+  async function cleanupLegacy(client,key,alias){
+    if(!alias||alias===key)return;
+    try{
+      const {data:source}=await client.from('quotations').select('pdf_path').eq('record_key',alias).maybeSingle();
+      if(source?.pdf_path)await client.from('quotations').update({pdf_path:source.pdf_path}).eq('record_key',key);
+      const {error}=await client.from('quotations').delete().eq('record_key',alias);
+      if(error)console.warn('Unique quotation saved, but legacy duplicate could not be cleaned up.',error);
+    }catch(error){console.warn('Legacy quotation cleanup was deferred.',error)}
+  }
+
   async function persistUnique(data,total,sourceKey){
     const key=quoteKey(data);
     if(!key)return false;
@@ -78,10 +88,7 @@
     if(pdfPath)row.pdf_path=pdfPath;
     const {error}=await client.from('quotations').upsert(row,{onConflict:'record_key'});
     if(error)throw error;
-    if(alias&&alias!==key){
-      const {error:deleteError}=await client.from('quotations').delete().eq('record_key',alias);
-      if(deleteError)console.warn('Unique quotation saved, but legacy duplicate could not be cleaned up.',deleteError);
-    }
+    if(alias&&alias!==key)setTimeout(()=>cleanupLegacy(client,key,alias),pdfPath?1200:4500);
     return true;
   }
 
@@ -201,10 +208,8 @@
         action.classList.remove('aua-history-delete');
         action.onclick=async()=>{
           action.disabled=true;const old=action.textContent;action.textContent=archived?'Restoring…':'Archiving…';
-          try{
-            await setArchived(record,!archived);
-            document.getElementById('auaHistoryRefresh')?.click();
-          }catch(error){alert(error?.message||'Unable to update archive status.');action.disabled=false;action.textContent=old}
+          try{await setArchived(record,!archived);document.getElementById('auaHistoryRefresh')?.click()}
+          catch(error){alert(error?.message||'Unable to update archive status.');action.disabled=false;action.textContent=old}
         };
       }
     }
@@ -221,9 +226,7 @@
   };
 
   function start(){
-    installSaveHooks();
-    ensureHistoryUi();
-    decorateHistory();
+    installSaveHooks();ensureHistoryUi();decorateHistory();
     document.addEventListener('aua-history-updated',decorateHistory);
     document.getElementById('cloudRecordsTab')?.addEventListener('click',()=>requestAnimationFrame(decorateHistory));
     document.getElementById('auaHistorySearch')?.addEventListener('input',()=>requestAnimationFrame(decorateHistory));
