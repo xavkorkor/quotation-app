@@ -56,7 +56,17 @@
   function ensureStyles(){
     if(document.getElementById('auaQuotationAuditStyles'))return;
     const style=document.createElement('style');style.id='auaQuotationAuditStyles';
-    style.textContent='.aua-history-audit-line{display:block;margin-top:4px;font-size:9.5px;font-weight:700;color:#475569;line-height:1.35}.aua-history-audit-card{margin:0 0 18px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.aua-history-audit-card span{display:block;font-size:8.5px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:3px}.aua-history-audit-card b{font-size:11px;color:#0f2747}.aua-history-quote-ref{display:none!important}.aua-history-updated-cell .aua-history-status-badge{display:block;width:max-content;margin:5px 0 0 auto}';
+    style.textContent=`
+      .aua-history-audit-line{display:block;margin:0;font-size:8.8px;font-weight:700;color:#64748b;line-height:1.25;white-space:nowrap}
+      .aua-history-audit-card{margin:0 0 18px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}
+      .aua-history-audit-card span{display:block;font-size:8.5px;font-weight:800;text-transform:uppercase;color:#64748b;margin-bottom:3px}
+      .aua-history-audit-card b{font-size:11px;color:#0f2747}
+      .aua-history-quote-ref{display:none!important}
+      .aua-history-updated-cell{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px;min-width:0;text-align:right}
+      .aua-history-updated-cell .aua-history-updated{display:block;margin:0;line-height:1.25;white-space:nowrap}
+      .aua-history-updated-cell .aua-history-status-badge{display:block;min-width:72px;width:max-content;margin:0;padding:3px 8px;text-align:center;line-height:1.2}
+      @media(max-width:900px){.aua-history-updated-cell{display:none}}
+    `;
     document.head.appendChild(style);
   }
 
