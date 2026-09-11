@@ -15,7 +15,7 @@
   function cloudSaveConfirmed(){
     const status=document.getElementById('cloudStatus');
     const message=String(status?.textContent||'');
-    return status?.dataset?.tone==='success'&&(/Saved online/i.test(message)||/saved online/i.test(message));
+    return status?.dataset?.tone==='success'&&(/Saved online/i.test(message)||/Saved quotation/i.test(message));
   }
   function markRecordWhenConfirmed(result){
     const check=()=>{if(cloudSaveConfirmed())markClean()};
@@ -23,6 +23,8 @@
     else setTimeout(check,80);
     return result;
   }
+
+  window.AUAUnsavedProtection=Object.assign(window.AUAUnsavedProtection||{},{markClean,isDirty,confirmDiscard});
 
   function installFunctionHooks(){
     if(typeof state!=='function'||typeof loadRecord!=='function'||typeof newQuote!=='function'||typeof duplicateQuote!=='function'||typeof saveRecord!=='function'||typeof saveRecent!=='function')return false;
@@ -58,8 +60,6 @@
     };
 
     saveRecord=function(){return markRecordWhenConfirmed(baseSaveRecord.apply(this,arguments))};
-    // saveRecent may perform a silent/background cloud save. Do not assume that means
-    // the user's explicit online save succeeded; a false warning is safer than data loss.
     saveRecent=function(){return baseSaveRecent.apply(this,arguments)};
     return true;
   }
@@ -89,7 +89,7 @@
         setTimeout(()=>{
           const after=String(document.getElementById('cloudStatus')?.textContent||'');
           if(after!==before&&cloudSaveConfirmed())markClean();
-        },1400);
+        },500);
       });
     }
 
