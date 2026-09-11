@@ -65,5 +65,6 @@
     .then(()=>load('./cloud-record-integrity.js'))
     .then(()=>load('./history-permanent-delete.js'))
     .then(()=>load('./ui-workspace-v1.js'))
+    .then(()=>load('./ui-topbar-v2.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
