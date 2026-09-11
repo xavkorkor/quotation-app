@@ -24,7 +24,6 @@
     .then(()=>load('./service-qty-display.js'))
     .then(()=>load('./preview-editor.js'))
     .then(()=>load('./workflow-upgrades.js'))
-    .then(()=>load('./voice-quote.js'))
     .then(()=>load('./pricing-integrity.js'))
     .then(()=>load('./calculation-audit.js'))
     .then(()=>load('./history-enhancements.js'))
