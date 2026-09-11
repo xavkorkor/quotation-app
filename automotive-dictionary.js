@@ -1,6 +1,9 @@
 // Loader for Alan's United Auto automotive intelligence.
 (function(){
   function load(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+  function captureLocalPdfGenerator(){
+    if(typeof window.makePdfBlob==='function'&&!window.__auaBaseMakePdfBlob)window.__auaBaseMakePdfBlob=window.makePdfBlob;
+  }
   function prepareRecentForLegacySync(){
     const key='auaRecentQuotesV1';
     try{
@@ -26,8 +29,13 @@
     });
   }
   prepareRecentForLegacySync();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
-  else disableCustomerVehicleHistory();
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',captureLocalPdfGenerator,{once:true});
+    document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
+  }else{
+    captureLocalPdfGenerator();
+    disableCustomerVehicleHistory();
+  }
   load('./automotive-dictionary-core.js')
     .then(()=>load('./section-layout.js'))
     .then(()=>load('./upgrade-suite.js'))
