@@ -175,7 +175,6 @@
     onlineRecords=data||[];
     const recent=onlineRecords.map(r=>({key:r.record_key,ts:new Date(r.updated_at).getTime(),total:Number(r.total||0),data:r.data||{}}));
     localStorage.setItem(RECENTKEY,JSON.stringify(recent));
-    renderRecent();
     renderAllRecords();
     if(!options.silent)cloudStatus(`Loaded ${recent.length} online quotation${recent.length===1?'':'s'}.`,'success');
   }
