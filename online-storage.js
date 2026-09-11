@@ -20,7 +20,8 @@
     panel.id='cloudPanel';
     panel.className='panel cloud-panel';
     panel.innerHTML=`
-      <div class="panel-title">ONLINE STORAGE</div>
+      <div id="cloudLoginBrand" class="cloud-login-brand">ALAN'S UNITED AUTO</div>
+      <div id="cloudPanelTitle" class="panel-title">STAFF SIGN IN</div>
       <div id="cloudSignedOut">
         <div class="grid cloud-login-grid">
           <div><label>Staff Email</label><input id="cloudEmail" type="email" autocomplete="username" data-preserve-case placeholder="name@example.com"></div>
@@ -43,7 +44,7 @@
     const editor=document.querySelector('.editor');
     if(editor)editor.prepend(panel);
     const style=document.createElement('style');
-    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-sign-out{width:100%;margin-top:9px}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}.cloud-records-panel{margin-top:10px;padding-top:10px;border-top:1px solid #cbdff5}.cloud-record-list{display:grid;gap:6px;max-height:340px;overflow:auto;margin-top:8px}.cloud-record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #dbe4ef;border-radius:9px;background:#fff}.cloud-record-name{font-size:12px;font-weight:700}.cloud-record-meta{font-size:10.5px;color:#667085;margin-top:2px}.cloud-record-total{font-size:11px;font-weight:700;color:#334155;margin-bottom:5px;text-align:right}.cloud-record-actions{display:flex;gap:5px}.cloud-record-open,.cloud-record-delete{padding:6px 10px;font-size:11px}.cloud-record-delete{border-color:#fecaca;color:#b42318;background:#fff}.cloud-record-delete:hover{background:#fef2f2}.cloud-tab-active{background:#dbeafe;color:#1d4ed8}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}}';
+    style.textContent='.cloud-panel{background:#f8fbff;border-color:#cbdff5;border-left:4px solid #2563eb}.cloud-auth-gate .cloud-panel{margin-top:0;padding:28px;box-shadow:0 12px 38px rgba(15,23,42,.12)}.cloud-login-brand{display:none;font-family:Georgia,serif;font-size:24px;font-weight:900;text-align:center;color:#111827;margin:2px 0 22px}.cloud-auth-gate .cloud-login-brand{display:block}.cloud-auth-gate #cloudPanelTitle{text-align:center;font-size:12px;margin-bottom:18px}.cloud-auth-gate #cloudStatus{text-align:center;margin-top:14px}.cloud-login-grid{grid-template-columns:1fr 1fr}.cloud-auth-gate .cloud-login-grid{grid-template-columns:1fr}.cloud-auth-gate #cloudSignIn{grid-column:1/-1}.cloud-sign-out{width:100%;margin-top:9px}.cloud-status{font-size:11px;color:#475569;margin-top:9px;line-height:1.4}.cloud-status[data-tone="success"]{color:#166534}.cloud-status[data-tone="error"]{color:#b42318}.cloud-records-panel{margin-top:10px;padding-top:10px;border-top:1px solid #cbdff5}.cloud-record-list{display:grid;gap:6px;max-height:340px;overflow:auto;margin-top:8px}.cloud-record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #dbe4ef;border-radius:9px;background:#fff}.cloud-record-name{font-size:12px;font-weight:700}.cloud-record-meta{font-size:10.5px;color:#667085;margin-top:2px}.cloud-record-total{font-size:11px;font-weight:700;color:#334155;margin-bottom:5px;text-align:right}.cloud-record-actions{display:flex;gap:5px}.cloud-record-open,.cloud-record-delete{padding:6px 10px;font-size:11px}.cloud-record-delete{border-color:#fecaca;color:#b42318;background:#fff}.cloud-record-delete:hover{background:#fef2f2}.cloud-tab-active{background:#dbeafe;color:#1d4ed8}@media(max-width:600px){.cloud-login-grid{grid-template-columns:1fr}.cloud-auth-gate .cloud-panel{padding:22px}}';
     document.head.appendChild(style);
     document.getElementById('cloudSignIn').onclick=signIn;
     document.getElementById('cloudSave').onclick=()=>saveCurrentQuote();
@@ -56,8 +57,11 @@
 
   function showSession(){
     const signedIn=!!user;
+    document.documentElement.classList.toggle('cloud-auth-gate',!signedIn);
     document.getElementById('cloudSignedOut').hidden=signedIn;
     document.getElementById('cloudSignedIn').hidden=!signedIn;
+    document.getElementById('cloudLoginBrand').hidden=signedIn;
+    document.getElementById('cloudPanelTitle').textContent=signedIn?'ONLINE STORAGE':'STAFF SIGN IN';
     if(!signedIn){document.getElementById('cloudRecordsPanel').hidden=true;document.getElementById('cloudRecordsTab').classList.remove('cloud-tab-active');onlineRecords=[]}
     document.getElementById('cloudUser').textContent=signedIn?`Signed in as ${user.email||'staff user'}`:'';
     const mainSave=document.querySelector('button[onclick="saveRecord()"]');
