@@ -53,6 +53,8 @@
   }
   function getRecord(key){try{return (typeof getRecent==='function'?getRecent():[]).find(r=>String(r?.key||'')===String(key||''))}catch{return null}}
 
+  window.AUAQuotationAudit=Object.assign(window.AUAQuotationAudit||{},{stampSave});
+
   function ensureStyles(){
     if(document.getElementById('auaQuotationAuditStyles'))return;
     const style=document.createElement('style');style.id='auaQuotationAuditStyles';
@@ -74,21 +76,12 @@
     const overlay=document.getElementById('auaHistoryOverlay');if(!overlay||overlay.hidden)return;
     overlay.querySelectorAll('.aua-history-row[data-aua-key]').forEach(row=>{
       const record=getRecord(row.dataset.auaKey),view=displayAudit(cleanAudit(record?.data||{})),cell=row.querySelector('.aua-history-updated-cell');if(!cell)return;
-      const sourceCell=row.children?.[1];
-      const preferred=sourceCell?.querySelector('.aua-history-status-badge')||cell.querySelector('.aua-history-status-badge')||row.querySelector('.aua-history-status-badge');
-      row.querySelectorAll('.aua-history-status-badge').forEach(badge=>{if(badge!==preferred)badge.remove()});
-      const updated=cell.querySelector('.aua-history-updated');
-      if(preferred){
-        if(preferred.parentElement!==cell){
-          if(updated)updated.after(preferred);else cell.prepend(preferred);
-        }else if(updated&&preferred.previousElementSibling!==updated){
-          updated.after(preferred);
-        }
-      }
-      let line=cell.querySelector('.aua-history-audit-line');
-      if(!line){line=document.createElement('span');line.className='aua-history-audit-line'}
+      const statuses=Array.from(row.querySelectorAll('.aua-history-status-badge'));
+      const status=statuses.pop();statuses.forEach(extra=>extra.remove());
+      if(status)cell.appendChild(status);
+      let line=cell.querySelector('.aua-history-audit-line');if(!line){line=document.createElement('span');line.className='aua-history-audit-line'}
       line.textContent=`${view.label} ${view.name}`;
-      if(preferred)preferred.after(line);else cell.appendChild(line);
+      cell.appendChild(line);
     });
     const selected=overlay.querySelector('.aua-history-row.selected[data-aua-key]'),preview=document.getElementById('auaHistoryPreview');if(!preview)return;
     const old=preview.querySelector('.aua-history-audit-card');if(!selected){old?.remove();return}
