@@ -13,7 +13,7 @@
     const date=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
     const time=`${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const tail=String(d.getMilliseconds()).padStart(3,'0');
-    return `AUA-${date}-${time}-${tail}`;
+    return `AUA${date}${time}${tail}`;
   }
 
   function ensureMeta(){
