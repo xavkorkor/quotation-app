@@ -20,7 +20,9 @@
     panel.id='cloudPanel';
     panel.className='panel cloud-panel';
     panel.innerHTML=`
+      <div id="cloudLoginMark" hidden>AU</div>
       <div id="cloudLoginBrand" class="cloud-login-brand">ALAN'S UNITED AUTO</div>
+      <div id="cloudLoginSubtitle" hidden>Quotation Management</div>
       <div id="cloudPanelTitle" class="panel-title">STAFF SIGN IN</div>
       <div id="cloudSignedOut">
         <div class="grid cloud-login-grid">
@@ -60,7 +62,9 @@
     document.documentElement.classList.toggle('cloud-auth-gate',!signedIn);
     document.getElementById('cloudSignedOut').hidden=signedIn;
     document.getElementById('cloudSignedIn').hidden=!signedIn;
+    document.getElementById('cloudLoginMark').hidden=signedIn;
     document.getElementById('cloudLoginBrand').hidden=signedIn;
+    document.getElementById('cloudLoginSubtitle').hidden=signedIn;
     document.getElementById('cloudPanelTitle').textContent=signedIn?'ONLINE STORAGE':'STAFF SIGN IN';
     if(!signedIn){document.getElementById('cloudRecordsPanel').hidden=true;document.getElementById('cloudRecordsTab').classList.remove('cloud-tab-active');onlineRecords=[]}
     document.getElementById('cloudUser').textContent=signedIn?`Signed in as ${user.email||'staff user'}`:'';
