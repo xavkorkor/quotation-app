@@ -12,9 +12,15 @@
     return forcedDirty||!!(cleanSnapshot&&current&&current!==cleanSnapshot);
   }
   function confirmDiscard(message){return !isDirty()||window.confirm(message||'You have unsaved quotation changes. Continue without saving?')}
-  function markAfter(result){
-    if(result&&typeof result.then==='function')result.then(()=>setTimeout(markClean,0)).catch(()=>{});
-    else setTimeout(markClean,20);
+  function cloudSaveConfirmed(){
+    const status=document.getElementById('cloudStatus');
+    const message=String(status?.textContent||'');
+    return status?.dataset?.tone==='success'&&(/Saved online/i.test(message)||/saved online/i.test(message));
+  }
+  function markRecordWhenConfirmed(result){
+    const check=()=>{if(cloudSaveConfirmed())markClean()};
+    if(result&&typeof result.then==='function')result.then(()=>setTimeout(check,20)).catch(()=>{});
+    else setTimeout(check,80);
     return result;
   }
 
@@ -51,8 +57,10 @@
       return result;
     };
 
-    saveRecord=function(){return markAfter(baseSaveRecord.apply(this,arguments))};
-    saveRecent=function(){return markAfter(baseSaveRecent.apply(this,arguments))};
+    saveRecord=function(){return markRecordWhenConfirmed(baseSaveRecord.apply(this,arguments))};
+    // saveRecent may perform a silent/background cloud save. Do not assume that means
+    // the user's explicit online save succeeded; a false warning is safer than data loss.
+    saveRecent=function(){return baseSaveRecent.apply(this,arguments)};
     return true;
   }
 
@@ -76,7 +84,13 @@
     const cloudSave=document.getElementById('cloudSave');
     if(cloudSave&&!cloudSave.dataset.auaUnsavedSaveHook){
       cloudSave.dataset.auaUnsavedSaveHook='1';
-      cloudSave.addEventListener('click',()=>setTimeout(markClean,1200));
+      cloudSave.addEventListener('click',()=>{
+        const before=String(document.getElementById('cloudStatus')?.textContent||'');
+        setTimeout(()=>{
+          const after=String(document.getElementById('cloudStatus')?.textContent||'');
+          if(after!==before&&cloudSaveConfirmed())markClean();
+        },1400);
+      });
     }
 
     window.addEventListener('beforeunload',event=>{
