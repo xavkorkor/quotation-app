@@ -16,21 +16,6 @@
     };
     window.getRecent.__auaNoAutoMigration=true;
   }
-  function prepareRecentForLegacySync(){
-    const key='auaRecentQuotesV1';
-    try{
-      const list=JSON.parse(localStorage.getItem(key)||'[]');
-      if(!Array.isArray(list)||list.length<2)return;
-      const seen=new Set(),deduped=[];
-      list.slice().sort((a,b)=>Number(b?.ts||0)-Number(a?.ts||0)).forEach(record=>{
-        const d=record?.data||{},vehicle=String(d.vehicle||'').trim().toLowerCase(),customer=String(d.customer||'').trim().toLowerCase();
-        const legacy=vehicle?`${customer}|${vehicle}`:`${customer}|${String(d.date||'').trim().toLowerCase()}`;
-        if(seen.has(legacy))return;
-        seen.add(legacy);deduped.push(record);
-      });
-      if(deduped.length!==list.length)localStorage.setItem(key,JSON.stringify(deduped));
-    }catch{}
-  }
   function disableCustomerVehicleHistory(){
     ['customer','phone','vehicle','mileage','model'].forEach(id=>{
       const el=document.getElementById(id);
@@ -40,7 +25,6 @@
       el.setAttribute('autocapitalize',id==='vehicle'?'characters':'off');
     });
   }
-  prepareRecentForLegacySync();
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',()=>{captureLocalPdfGenerator();blockLegacyAutoMigration()},{once:true});
     document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
