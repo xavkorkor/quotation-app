@@ -1,10 +1,9 @@
-// Unique quotation history and recoverable archive bridge.
-// Cloud configuration is read lazily from the existing storage module only when a save/archive action occurs.
+// Unique quotation history, recoverable archive, and strict explicit-save bridge.
+// No quotation record is created by background saveRecent/PDF/startup activity.
 (function(){
   const LOCAL_KEY='auaRecentQuotesV1';
   let clientPromise=null;
   let installed=false;
-  const pending=new Map();
 
   const clone=value=>{try{return JSON.parse(JSON.stringify(value))}catch{return value}};
   const text=value=>String(value??'').trim();
@@ -14,6 +13,13 @@
     return vehicle?`${customer}|${vehicle}`:[customer,data?.date].map(v=>text(v).toLowerCase()).join('|');
   };
   const rawRecords=()=>{try{return typeof getRecent==='function'?(getRecent()||[]):[]}catch{return[]}};
+
+  function cloudStatus(message,tone='normal'){
+    const el=document.getElementById('cloudStatus');
+    if(!el)return;
+    el.textContent=message;
+    el.dataset.tone=tone;
+  }
 
   async function cloudClient(){
     if(clientPromise)return clientPromise;
@@ -35,7 +41,7 @@
     const {data,error}=await client.auth.getSession();
     if(error)throw error;
     const user=data?.session?.user;
-    if(!user)throw new Error('Sign in before updating shared quotation history.');
+    if(!user)throw new Error('Sign in before saving a quotation.');
     return{client,user};
   }
 
@@ -54,22 +60,26 @@
   }
 
   async function cleanupLegacy(client,key,alias){
-    if(!alias||alias===key)return;
+    if(!alias||alias===key)return false;
     try{
       const {data:source}=await client.from('quotations').select('pdf_path').eq('record_key',alias).maybeSingle();
       if(source?.pdf_path)await client.from('quotations').update({pdf_path:source.pdf_path}).eq('record_key',key);
       const {error}=await client.from('quotations').delete().eq('record_key',alias);
-      if(error)console.warn('Unique quotation saved, but legacy duplicate could not be cleaned up.',error);
-    }catch(error){console.warn('Legacy quotation cleanup was deferred.',error)}
+      if(error)throw error;
+      return true;
+    }catch(error){
+      console.warn('Legacy quotation cleanup was deferred.',error);
+      return false;
+    }
   }
 
   async function persistUnique(data,total,sourceKey){
     const key=quoteKey(data);
-    if(!key)return false;
+    if(!key)throw new Error('Quotation number is missing. Start a fresh quotation and try again.');
     const {client,user}=await sessionAndClient();
     const alias=sourceKey||legacyKey(data);
     let pdfPath=null;
-    if(alias){
+    if(alias&&alias!==key){
       const {data:source,error:sourceError}=await client.from('quotations').select('pdf_path').eq('record_key',alias).maybeSingle();
       if(sourceError&&sourceError.code!=='PGRST116')console.warn('Unable to read existing quotation file link.',sourceError);
       pdfPath=source?.pdf_path||null;
@@ -88,16 +98,25 @@
     if(pdfPath)row.pdf_path=pdfPath;
     const {error}=await client.from('quotations').upsert(row,{onConflict:'record_key'});
     if(error)throw error;
-    if(alias&&alias!==key)setTimeout(()=>cleanupLegacy(client,key,alias),pdfPath?1200:4500);
+    if(alias&&alias!==key)await cleanupLegacy(client,key,alias);
     return true;
   }
 
-  function schedulePersist(data,total){
-    const key=quoteKey(data);
-    if(!key)return;
-    const old=pending.get(key)||[];old.forEach(clearTimeout);
-    const run=()=>persistUnique(clone(data),total).catch(error=>console.warn('Unique quotation history sync failed.',error));
-    pending.set(key,[setTimeout(run,700),setTimeout(run,2600)]);
+  async function explicitSave(){
+    try{
+      window.AUAQuotationAudit?.stampSave?.();
+      try{if(typeof S!=='undefined'&&typeof rememberItem==='function')S.forEach(section=>(section.items||[]).forEach(rememberItem))}catch{}
+      const data=clone(state()),total=Number(totals()?.grand||0);
+      cloudStatus('Saving quotation…');
+      await persistUnique(data,total);
+      promoteLocal(data,total);
+      cloudStatus(`Saved quotation${data.vehicle?' for '+data.vehicle:''}.`,'success');
+      window.AUAUnsavedProtection?.markClean?.();
+      return true;
+    }catch(error){
+      cloudStatus(error?.message||'Unable to save quotation.','error');
+      return false;
+    }
   }
 
   async function setArchived(record,archived){
@@ -105,42 +124,58 @@
     const data=clone(record.data);
     data.archived=!!archived;
     if(archived)data.archivedAt=new Date().toISOString();else delete data.archivedAt;
-    if(quoteKey(data))await persistUnique(data,record.total,record.key);
-    else{
+    if(quoteKey(data)){
+      await persistUnique(data,record.total,record.key);
+      promoteLocal(data,record.total);
+    }else{
       const {client}=await sessionAndClient();
       const {error}=await client.from('quotations').update({data,updated_at:new Date().toISOString()}).eq('record_key',record.key);
       if(error)throw error;
+      let list=[];
+      try{list=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')}catch{}
+      list.forEach(item=>{if(String(item?.key||'')===String(record.key||''))item.data=clone(data)});
+      localStorage.setItem(LOCAL_KEY,JSON.stringify(list));
     }
-    let list=[];
-    try{list=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')}catch{}
-    list.forEach(item=>{if(String(item?.key||'')===String(record.key||'')||text(item?.data?.quoteNumber)===text(data.quoteNumber))item.data=clone(data)});
-    localStorage.setItem(LOCAL_KEY,JSON.stringify(list));
     return true;
+  }
+
+  async function cleanupCloudDuplicates(){
+    const {client}=await sessionAndClient();
+    const {data,error}=await client.from('quotations').select('record_key,data').limit(500);
+    if(error)throw error;
+    const rows=data||[],preferred=new Map();
+    rows.forEach(row=>{
+      const ref=text(row?.data?.quoteNumber).toLowerCase();
+      if(ref&&String(row.record_key||'').startsWith('quote|'))preferred.set(ref,row.record_key);
+    });
+    let removed=0;
+    for(const row of rows){
+      const ref=text(row?.data?.quoteNumber).toLowerCase(),target=ref?preferred.get(ref):'';
+      if(!target||target===row.record_key)continue;
+      if(await cleanupLegacy(client,target,row.record_key))removed++;
+    }
+    return removed;
   }
 
   function installSaveHooks(){
     if(installed)return true;
-    if(typeof saveRecent!=='function'||typeof saveRecord!=='function'||typeof state!=='function'||typeof totals!=='function')return false;
-    const baseSaveRecent=saveRecent,baseSaveRecord=saveRecord;
-    saveRecent=function(){
-      const result=baseSaveRecent.apply(this,arguments);
-      const data=clone(state()),total=Number(totals()?.grand||0);
-      promoteLocal(data,total);schedulePersist(data,total);
-      return result;
-    };
-    saveRecord=function(){
-      const result=baseSaveRecord.apply(this,arguments);
-      const after=()=>{const data=clone(state()),total=Number(totals()?.grand||0);promoteLocal(data,total);schedulePersist(data,total)};
-      if(result&&typeof result.then==='function')return result.then(value=>{after();return value});
-      after();return result;
-    };
+    if(typeof state!=='function'||typeof totals!=='function')return false;
+
+    // Strict rule: background calls must never create quotation records.
+    saveRecent=function(){return false};
+    saveRecord=function(){return explicitSave()};
+
+    // PDF/WhatsApp generation stays local-only and must not auto-create an online record.
+    if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
+
     const cloudSave=document.getElementById('cloudSave');
-    if(cloudSave&&!cloudSave.dataset.auaUniqueHook){
-      cloudSave.dataset.auaUniqueHook='1';
-      cloudSave.addEventListener('click',()=>{
-        setTimeout(()=>{try{const data=clone(state()),total=Number(totals()?.grand||0);promoteLocal(data,total);schedulePersist(data,total)}catch{}},0);
-      },true);
+    if(cloudSave){
+      cloudSave.textContent='Save Quotation';
+      cloudSave.onclick=()=>saveRecord();
     }
+    const mainSave=document.querySelector('button[onclick*="saveRecord"]');
+    if(mainSave)mainSave.textContent='Save Quotation';
+
     installed=true;
     return true;
   }
@@ -220,7 +255,8 @@
 
   window.AUACloudIntegrity={
     setArchived,
-    persistCurrent:()=>{const data=clone(state()),total=Number(totals()?.grand||0);promoteLocal(data,total);return persistUnique(data,total)},
+    saveQuotation:explicitSave,
+    cleanupCloudDuplicates,
     isArchived:record=>!!record?.data?.archived,
     uniqueKeyForData:quoteKey
   };
@@ -228,7 +264,15 @@
   function start(){
     installSaveHooks();ensureHistoryUi();decorateHistory();
     document.addEventListener('aua-history-updated',decorateHistory);
-    document.getElementById('cloudRecordsTab')?.addEventListener('click',()=>requestAnimationFrame(decorateHistory));
+    document.getElementById('cloudRecordsTab')?.addEventListener('click',()=>{
+      requestAnimationFrame(decorateHistory);
+      setTimeout(async()=>{
+        try{
+          const removed=await cleanupCloudDuplicates();
+          if(removed)document.getElementById('auaHistoryRefresh')?.click();
+        }catch{}
+      },700);
+    });
     document.getElementById('auaHistorySearch')?.addEventListener('input',()=>requestAnimationFrame(decorateHistory));
   }
   if(document.readyState==='complete')start();else window.addEventListener('load',start,{once:true});
