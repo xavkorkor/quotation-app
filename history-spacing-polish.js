@@ -11,10 +11,11 @@
     .aua-history-chip{padding:9px 14px}
 
     .aua-history-list-wrap{padding:22px}
-    .aua-history-columns,.aua-history-row{grid-template-columns:110px minmax(240px,1.35fr) minmax(130px,.8fr) 110px 125px;gap:18px}
+    .aua-history-columns,.aua-history-row{grid-template-columns:110px minmax(240px,1.35fr) minmax(130px,.8fr) 110px 155px;gap:18px}
     .aua-history-columns{padding:0 18px 10px}
+    .aua-history-columns>span:last-child{text-align:right}
     .aua-history-list{gap:10px}
-    .aua-history-row{padding:16px 18px;min-height:72px}
+    .aua-history-row{padding:16px 18px;min-height:82px}
 
     .aua-history-date,.aua-history-model,.aua-history-updated{line-height:1.45}
     .aua-history-vehicle{display:inline-block;line-height:1.3}
@@ -34,7 +35,7 @@
 
     @media(max-width:900px){
       .aua-history-list-wrap{padding:16px}
-      .aua-history-row{grid-template-columns:90px minmax(0,1fr) 98px;gap:14px;padding:14px 16px}
+      .aua-history-row{grid-template-columns:90px minmax(0,1fr) 98px;gap:14px;padding:14px 16px;min-height:72px}
       .aua-history-preview{padding:22px}
     }
     @media(max-width:520px){
