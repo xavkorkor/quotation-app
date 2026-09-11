@@ -4,6 +4,18 @@
   function captureLocalPdfGenerator(){
     if(typeof window.makePdfBlob==='function'&&!window.__auaBaseMakePdfBlob)window.__auaBaseMakePdfBlob=window.makePdfBlob;
   }
+  function blockLegacyAutoMigration(){
+    if(typeof window.getRecent!=='function'||window.getRecent.__auaNoAutoMigration)return;
+    const baseGetRecent=window.getRecent;
+    window.getRecent=function(){
+      const list=baseGetRecent.apply(this,arguments);
+      try{
+        if(String(new Error().stack||'').includes('migrateLocal'))return [];
+      }catch{}
+      return list;
+    };
+    window.getRecent.__auaNoAutoMigration=true;
+  }
   function prepareRecentForLegacySync(){
     const key='auaRecentQuotesV1';
     try{
@@ -30,10 +42,11 @@
   }
   prepareRecentForLegacySync();
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',captureLocalPdfGenerator,{once:true});
+    document.addEventListener('DOMContentLoaded',()=>{captureLocalPdfGenerator();blockLegacyAutoMigration()},{once:true});
     document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
   }else{
     captureLocalPdfGenerator();
+    blockLegacyAutoMigration();
     disableCustomerVehicleHistory();
   }
   load('./automotive-dictionary-core.js')
