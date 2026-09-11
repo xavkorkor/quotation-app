@@ -7,8 +7,8 @@
   };
 
   function currentEmail(){
-    const text=String(byId('cloudUser')?.textContent||'').trim();
-    const match=text.match(/^Signed in as\s+(.+)$/i);
+    const value=String(byId('cloudUser')?.textContent||'').trim();
+    const match=value.match(/^Signed in as\s+(.+)$/i);
     return String(match?.[1]||'').trim().toLowerCase();
   }
 
@@ -26,11 +26,11 @@
       const data=baseState();
       const email=currentEmail();
       if(email){
+        const name=staffName(email);
         data.savedByEmail=email;
-        data.savedBy=staffName(email);
-        // Keep legacy fields in sync so previously added History logic remains compatible.
+        data.savedBy=name;
         data.lastUpdatedByEmail=email;
-        data.lastUpdatedBy=staffName(email);
+        data.lastUpdatedBy=name;
       }
       return data;
     };
@@ -53,7 +53,7 @@
     const stored=String(data.savedBy||data.lastUpdatedBy||'').trim();
     const mapped=staffName(email);
     const name=mapped!=='Not recorded'&&mapped!=='Staff'?mapped:(stored||mapped);
-    return {name:name||'Not recorded'};
+    return name||'Not recorded';
   }
 
   function addStyles(){
@@ -72,60 +72,66 @@
 
   function enhanceHistory(){
     const overlay=byId('auaHistoryOverlay');
-    if(!overlay)return;
+    if(!overlay||overlay.hidden)return;
     const columns=overlay.querySelector('.aua-history-columns');
-    if(columns?.children?.[4])columns.children[4].textContent='Last Updated';
+    if(columns?.children?.[4]&&columns.children[4].textContent!=='Last Updated')columns.children[4].textContent='Last Updated';
 
     overlay.querySelectorAll('.aua-history-row[data-aua-key]').forEach(row=>{
-      const record=findRecord(row.dataset.auaKey),staff=recordStaff(record);
       const cell=row.querySelector('.aua-history-updated-cell');
       if(!cell)return;
-      let by=cell.querySelector('.aua-history-updated-by');
-      if(!by){by=document.createElement('span');by.className='aua-history-updated-by';cell.appendChild(by)}
-      const label=staff.name==='Not recorded'?'Saved by —':`Saved by ${staff.name}`;
-      if(by.textContent!==label)by.textContent=label;
-      by.removeAttribute('title');
+      const name=recordStaff(findRecord(row.dataset.auaKey));
+      let label=cell.querySelector('.aua-history-updated-by');
+      if(!label){
+        label=document.createElement('span');
+        label.className='aua-history-updated-by';
+        cell.appendChild(label);
+      }
+      const value=name==='Not recorded'?'Saved by —':`Saved by ${name}`;
+      if(label.textContent!==value)label.textContent=value;
     });
 
     const selected=overlay.querySelector('.aua-history-row.selected[data-aua-key]');
     const preview=byId('auaHistoryPreview');
     if(!preview)return;
-    const existing=preview.querySelector('.aua-history-preview-updater');
-    if(!selected){existing?.remove();return}
-    const record=findRecord(selected.dataset.auaKey),staff=recordStaff(record);
-    let updater=existing;
+    let updater=preview.querySelector('.aua-history-preview-updater');
+    if(!selected){updater?.remove();return}
+    const name=recordStaff(findRecord(selected.dataset.auaKey));
     if(!updater){
       updater=document.createElement('div');
       updater.className='aua-history-preview-updater';
       const stats=preview.querySelector('.aua-history-stats');
       if(stats)preview.insertBefore(updater,stats);else preview.prepend(updater);
     }
-    const html=staff.name==='Not recorded'
-      ?'<b>Saved by:</b> Not recorded'
-      :`<b>Saved by:</b> ${staff.name}`;
-    if(updater.innerHTML!==html)updater.innerHTML=html;
+    const value=name==='Not recorded'?'<b>Saved by:</b> Not recorded':`<b>Saved by:</b> ${name}`;
+    if(updater.innerHTML!==value)updater.innerHTML=value;
   }
 
-  function observeHistory(){
+  function queueEnhance(){
+    requestAnimationFrame(()=>enhanceHistory());
+  }
+
+  function installHistoryHooks(){
     const overlay=byId('auaHistoryOverlay');
-    if(!overlay)return false;
-    if(overlay.dataset.auaStaffObserved)return true;
-    overlay.dataset.auaStaffObserved='1';
-    let queued=false;
-    const observer=new MutationObserver(()=>{
-      if(queued)return;
-      queued=true;
-      queueMicrotask(()=>{queued=false;enhanceHistory()});
+    const button=byId('cloudRecordsTab');
+    if(!overlay||!button)return false;
+    if(overlay.dataset.auaStaffHooks)return true;
+    overlay.dataset.auaStaffHooks='1';
+
+    button.addEventListener('click',()=>{
+      setTimeout(queueEnhance,0);
+      setTimeout(queueEnhance,150);
+      setTimeout(queueEnhance,400);
     });
-    observer.observe(overlay,{childList:true,subtree:true});
-    enhanceHistory();
+    overlay.addEventListener('click',()=>setTimeout(queueEnhance,0));
+    overlay.addEventListener('input',()=>setTimeout(queueEnhance,0));
+    overlay.addEventListener('change',()=>setTimeout(queueEnhance,0));
     return true;
   }
 
   function install(){
     addStyles();
     const stateReady=installStateAttribution();
-    const historyReady=observeHistory();
+    const historyReady=installHistoryHooks();
     if(!stateReady||!historyReady)setTimeout(install,200);
   }
 
