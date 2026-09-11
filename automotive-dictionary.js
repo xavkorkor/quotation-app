@@ -32,5 +32,6 @@
     .then(()=>load('./history-enhancements.js'))
     .then(()=>load('./history-spacing-polish.js'))
     .then(()=>load('./quotation-audit.js'))
+    .then(()=>load('./startup-fresh-quote.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
