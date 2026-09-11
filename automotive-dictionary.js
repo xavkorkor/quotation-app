@@ -16,6 +16,10 @@
     };
     window.getRecent.__auaNoAutoMigration=true;
   }
+  function blockBackgroundPersistence(){
+    if(typeof window.saveRecent==='function')window.saveRecent=function(){return false};
+    if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
+  }
   function disableCustomerVehicleHistory(){
     ['customer','phone','vehicle','mileage','model'].forEach(id=>{
       const el=document.getElementById(id);
@@ -26,11 +30,16 @@
     });
   }
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>{captureLocalPdfGenerator();blockLegacyAutoMigration()},{once:true});
+    document.addEventListener('DOMContentLoaded',()=>{
+      captureLocalPdfGenerator();
+      blockLegacyAutoMigration();
+      setTimeout(blockBackgroundPersistence,0);
+    },{once:true});
     document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
   }else{
     captureLocalPdfGenerator();
     blockLegacyAutoMigration();
+    blockBackgroundPersistence();
     disableCustomerVehicleHistory();
   }
   load('./automotive-dictionary-core.js')
