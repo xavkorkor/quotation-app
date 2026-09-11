@@ -49,5 +49,6 @@
     .then(()=>load('./history-tools.js'))
     .then(()=>load('./unsaved-protection.js'))
     .then(()=>load('./cloud-record-integrity.js'))
+    .then(()=>load('./history-permanent-delete.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
