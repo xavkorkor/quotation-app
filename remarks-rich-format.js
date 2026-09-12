@@ -39,13 +39,54 @@
     return (box.textContent||'').replace(/\u00a0/g,' ');
   }
 
+  function printText(value){
+    return escapeHtml(String(value??''))
+      .replace(/\t/g,'&nbsp;&nbsp;&nbsp;&nbsp;')
+      .replace(/ {2,}/g,spaces=>'&nbsp;'.repeat(spaces.length));
+  }
+
+  // html2canvas can collapse CSS whitespace during PDF capture. Convert every
+  // explicit remark line into a real block row so line breaks and blank lines
+  // survive both Save PDF and WhatsApp PDF generation.
+  function printBodyHtml(html){
+    const template=document.createElement('template');
+    template.innerHTML=sanitize(html);
+    const lines=[[]];
+
+    function walk(node,bold=false){
+      if(node.nodeType===Node.TEXT_NODE){
+        const content=printText(node.nodeValue||'');
+        if(content)lines[lines.length-1].push(bold?`<strong>${content}</strong>`:content);
+        return;
+      }
+      if(node.nodeType!==Node.ELEMENT_NODE)return;
+      const tag=node.tagName.toLowerCase();
+      if(tag==='br'){
+        lines.push([]);
+        return;
+      }
+      const nextBold=bold||tag==='b'||tag==='strong';
+      Array.from(node.childNodes).forEach(child=>walk(child,nextBold));
+      if((tag==='div'||tag==='p'||tag==='li')&&lines[lines.length-1].length)lines.push([]);
+    }
+
+    Array.from(template.content.childNodes).forEach(node=>walk(node,false));
+    while(lines.length>1&&!lines[lines.length-1].length)lines.pop();
+    return lines.map(parts=>`<div class="aua-remarks-line">${parts.join('')||'&nbsp;'}</div>`).join('');
+  }
+
+  function currentSafeHtml(){
+    if(editor)richHtml=sanitize(editor.innerHTML);
+    return sanitize(richHtml||plainToHtml(byId('remarks')?.value||''));
+  }
+
   function renderPreview(){
     const preview=byId('pRemarks');
     if(!preview)return;
-    const safe=sanitize(richHtml||plainToHtml(byId('remarks')?.value||''));
+    const safe=currentSafeHtml();
     const hasText=plainFromHtml(safe).trim().length>0;
     preview.style.display=hasText?'block':'none';
-    preview.innerHTML=hasText?`<div class="aua-remarks-print-title">Remarks</div><div class="aua-remarks-print-body">${safe}</div>`:'';
+    preview.innerHTML=hasText?`<div class="aua-remarks-print-title">Remarks</div><div class="aua-remarks-print-body">${printBodyHtml(safe)}</div>`:'';
   }
 
   function syncFromEditor(){
@@ -54,6 +95,15 @@
     const backing=byId('remarks');
     if(backing)backing.value=plainFromHtml(richHtml);
     try{if(typeof window.upd==='function')window.upd()}catch{}
+    renderPreview();
+  }
+
+  function prepareForExport(){
+    if(editor){
+      richHtml=sanitize(editor.innerHTML);
+      const backing=byId('remarks');
+      if(backing)backing.value=plainFromHtml(richHtml);
+    }
     renderPreview();
   }
 
@@ -116,8 +166,8 @@
       .aua-remarks-editor{min-height:115px;width:100%;padding:11px;border:1px solid #cfd9e5;border-radius:10px;background:#fff;color:#172033;font:inherit;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;outline:none}
       .aua-remarks-editor:hover{border-color:#aebed1}.aua-remarks-editor:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.13)}
       .aua-remarks-editor:empty:before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none}.aua-remarks-editor strong{font-weight:800}
-      .remark-print{white-space:normal!important;line-height:1.5!important}.aua-remarks-print-title{margin-bottom:5px;font-weight:800}.aua-remarks-print-body{white-space:pre-wrap;overflow-wrap:anywhere}.aua-remarks-print-body strong{font-weight:800}
-      @media print{.aua-remarks-print-body{white-space:pre-wrap!important}}
+      .remark-print{white-space:normal!important;line-height:1.5!important}.aua-remarks-print-title{margin-bottom:5px;font-weight:800}.aua-remarks-print-body{display:block;white-space:normal!important;overflow-wrap:anywhere}.aua-remarks-line{display:block;min-height:1.5em;line-height:1.5;white-space:normal}.aua-remarks-line strong{font-weight:800}
+      @media print{.aua-remarks-print-body,.aua-remarks-line{white-space:normal!important}}
     `;
     document.head.appendChild(style);
   }
@@ -131,6 +181,7 @@
     const baseNewQuote=window.newQuote;
     const baseDuplicateQuote=typeof window.duplicateQuote==='function'?window.duplicateQuote:null;
     const baseUpd=typeof window.upd==='function'?window.upd:null;
+    const baseMakePdfBlob=typeof window.makePdfBlob==='function'?window.makePdfBlob:null;
 
     window.state=function(){
       const data=baseState.apply(this,arguments);
@@ -174,6 +225,15 @@
         return result;
       };
       window.upd.__auaRichRemarks=true;
+    }
+
+    if(baseMakePdfBlob&&!baseMakePdfBlob.__auaRichRemarksExport){
+      window.makePdfBlob=async function(){
+        prepareForExport();
+        try{return await baseMakePdfBlob.apply(this,arguments)}
+        finally{renderPreview()}
+      };
+      window.makePdfBlob.__auaRichRemarksExport=true;
     }
     return true;
   }
