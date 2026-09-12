@@ -66,5 +66,6 @@
     .then(()=>load('./history-permanent-delete.js'))
     .then(()=>load('./ui-workspace-v1.js'))
     .then(()=>load('./ui-topbar-v2.js'))
+    .then(()=>load('./remarks-rich-format.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
