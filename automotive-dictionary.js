@@ -68,5 +68,6 @@
     .then(()=>load('./ui-topbar-v2.js'))
     .then(()=>load('./remarks-rich-format.js'))
     .then(()=>load('./quotation-readability.js'))
+    .then(()=>load('./history-doubleclick.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
