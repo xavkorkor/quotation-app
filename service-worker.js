@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v4';
+const CACHE='au-quotation-v5';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./header_1.txt'];
 self.addEventListener('install',event=>{
   self.skipWaiting();
