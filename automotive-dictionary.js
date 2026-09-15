@@ -20,6 +20,11 @@
     if(typeof window.saveRecent==='function')window.saveRecent=function(){return false};
     if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
   }
+  function cleanupLegacyState(){
+    try{
+      ['aua_quote_autodraft_v1','auaQuoteRevisionsV1','auaVehicleMemoryV1'].forEach(key=>localStorage.removeItem(key));
+    }catch{}
+  }
   function disableCustomerVehicleHistory(){
     ['customer','phone','vehicle','mileage','model'].forEach(id=>{
       const el=document.getElementById(id);
@@ -33,18 +38,19 @@
     document.addEventListener('DOMContentLoaded',()=>{
       captureLocalPdfGenerator();
       blockLegacyAutoMigration();
+      cleanupLegacyState();
       setTimeout(blockBackgroundPersistence,0);
     },{once:true});
     document.addEventListener('DOMContentLoaded',disableCustomerVehicleHistory);
   }else{
     captureLocalPdfGenerator();
     blockLegacyAutoMigration();
+    cleanupLegacyState();
     blockBackgroundPersistence();
     disableCustomerVehicleHistory();
   }
   load('./automotive-dictionary-core.js')
     .then(()=>load('./section-layout.js'))
-    .then(()=>load('./upgrade-suite.js'))
     .then(()=>load('./item-menu.js'))
     .then(()=>load('./typography-uppercase.js'))
     .then(()=>load('./section-discount-menu.js'))
@@ -52,7 +58,6 @@
     .then(()=>load('./discount-preview.js'))
     .then(()=>load('./service-qty-display.js'))
     .then(()=>load('./preview-editor.js'))
-    .then(()=>load('./workflow-upgrades.js'))
     .then(()=>load('./pricing-integrity.js'))
     .then(()=>load('./calculation-audit.js'))
     .then(()=>load('./history-enhancements.js'))
