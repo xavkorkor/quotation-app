@@ -20,17 +20,8 @@
     if(!STATUS_OPTIONS.includes(quoteStatus))quoteStatus='Draft';
   }
 
-  function injectUi(){
-    if(byId('auaQuoteWorkflowPanel'))return true;
-    const customerPanel=document.querySelector('.customer-panel');
-    if(!customerPanel)return false;
-
-    const panel=document.createElement('div');
-    panel.id='auaQuoteWorkflowPanel';
-    panel.className='panel settings-panel aua-quote-workflow-panel';
-    panel.innerHTML=`<div class="panel-title">QUOTATION DETAILS</div><div class="grid"><div><label>Quotation No.</label><input id="auaQuoteNumber" data-preserve-case readonly></div><div><label>Status</label><select id="auaQuoteStatus">${STATUS_OPTIONS.map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div></div>`;
-    customerPanel.insertAdjacentElement('afterend',panel);
-
+  function ensureStyles(){
+    if(byId('auaQuoteWorkflowStyles'))return;
     const style=document.createElement('style');
     style.id='auaQuoteWorkflowStyles';
     style.textContent=`
@@ -41,8 +32,30 @@
       .aua-preview-quote-ref{font-weight:700}
     `;
     document.head.appendChild(style);
+  }
 
-    byId('auaQuoteStatus').addEventListener('change',e=>{quoteStatus=e.target.value||'Draft'});
+  function ensureUi(){
+    let panel=byId('auaQuoteWorkflowPanel');
+    if(!panel){
+      const customerPanel=document.querySelector('.customer-panel');
+      if(!customerPanel)return false;
+      panel=document.createElement('div');
+      panel.id='auaQuoteWorkflowPanel';
+      panel.className='panel settings-panel aua-quote-workflow-panel';
+      panel.innerHTML=`<div class="panel-title">QUOTATION DETAILS</div><div class="grid"><div><label>Quotation No.</label><input id="auaQuoteNumber" data-preserve-case readonly></div><div><label>Status</label><select id="auaQuoteStatus">${STATUS_OPTIONS.map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div></div>`;
+      customerPanel.insertAdjacentElement('afterend',panel);
+    }
+
+    ensureStyles();
+
+    const status=byId('auaQuoteStatus');
+    if(status&&status.dataset.auaStatusBound!=='1'){
+      status.dataset.auaStatusBound='1';
+      status.addEventListener('change',e=>{
+        quoteStatus=e.target.value||'Draft';
+        window.auaSyncWorkspaceHeader?.();
+      });
+    }
 
     const meta=document.querySelector('.paper .meta');
     if(meta&&!byId('pQuoteNumberWrap')){
@@ -64,10 +77,15 @@
     if(q&&q.value!==quoteNumber)q.value=quoteNumber;
     if(s&&s.value!==quoteStatus)s.value=quoteStatus;
     if(p&&p.textContent!==quoteNumber)p.textContent=quoteNumber;
+    window.auaSyncWorkspaceHeader?.();
   }
 
   function records(){
     try{return typeof getRecent==='function'?(getRecent()||[]):[]}catch{return[]}
+  }
+
+  function markAutofill(input){
+    if(input&&String(input.value||'')!=='')input.dataset.auaHistoryAutofill='1';
   }
 
   function injectVehicleLookup(){
@@ -106,11 +124,12 @@
       suggestion.innerHTML=`<button type="button">Use previous details${bits?`: ${escapeHtml(bits)}`:''}</button>`;
       suggestion.style.display='block';
       suggestion.querySelector('button').onclick=()=>{
-        if(d.customer)byId('customer').value=d.customer;
-        if(d.phone)byId('phone').value=d.phone;
-        if(d.model)byId('model').value=d.model;
+        const customer=byId('customer'),phone=byId('phone'),model=byId('model');
+        if(d.customer&&customer){customer.value=d.customer;markAutofill(customer)}
+        if(d.phone&&phone){phone.value=d.phone;markAutofill(phone)}
+        if(d.model&&model){model.value=d.model;markAutofill(model)}
         suggestion.style.display='none';
-        if(typeof render==='function')render();
+        if(typeof upd==='function')upd();
       };
     };
 
@@ -175,8 +194,8 @@
 
   function install(){
     const hooks=installHooks();
-    const ui=injectUi();
-    if(!hooks||!ui){setTimeout(install,250);return}
+    const ui=ensureUi();
+    if(!hooks||!ui){setTimeout(install,120);return}
     syncUi();
   }
 
