@@ -1,6 +1,6 @@
 // Alan's United Auto runtime bootstrap.
-// The base page now contains the current UI directly. Only active feature modules are
-// loaded at startup; History-only modules are fetched on demand when History is opened.
+// The base page contains the current UI directly. Only active feature modules are loaded
+// at startup; History-only modules are fetched on demand when History is opened.
 (function(){
   function loadOrdered(sources){
     return Promise.all(sources.map(src=>new Promise((resolve,reject)=>{
@@ -16,7 +16,6 @@
   function captureLocalPdfGenerator(){
     if(typeof window.makePdfBlob==='function'&&!window.__auaBaseMakePdfBlob)window.__auaBaseMakePdfBlob=window.makePdfBlob;
   }
-
   function blockLegacyAutoMigration(){
     if(typeof window.getRecent!=='function'||window.getRecent.__auaNoAutoMigration)return;
     const baseGetRecent=window.getRecent;
@@ -27,16 +26,13 @@
     };
     window.getRecent.__auaNoAutoMigration=true;
   }
-
   function blockBackgroundPersistence(){
     if(typeof window.saveRecent==='function')window.saveRecent=function(){return false};
     if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
   }
-
   function cleanupLegacyState(){
     try{['aua_quote_autodraft_v1','auaQuoteRevisionsV1','auaVehicleMemoryV1'].forEach(key=>localStorage.removeItem(key))}catch{}
   }
-
   function disableCustomerVehicleHistory(){
     ['customer','phone','vehicle','mileage','model'].forEach(id=>{
       const el=document.getElementById(id);if(!el)return;
@@ -45,7 +41,6 @@
       el.setAttribute('autocapitalize',id==='vehicle'?'characters':'off');
     });
   }
-
   function startupGuards(){
     captureLocalPdfGenerator();
     blockLegacyAutoMigration();
@@ -57,7 +52,6 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
 
-  // Only features used in the normal quotation workflow load on every visit.
   const coreModules=[
     './item-drag-drop.js',
     './typography-uppercase.js',
@@ -77,8 +71,6 @@
     './whatsapp-share-fix.js'
   ];
 
-  // History is a separate workspace. Loading it only when requested removes a large amount
-  // of startup JS/CSS/DOM work from ordinary quotation creation.
   const historyModules=[
     './history-enhancements.js',
     './history-spacing-polish.js',
@@ -89,9 +81,7 @@
   let historyPromise=null;
 
   window.auaOpenHistory=async function(){
-    if(!historyPromise){
-      historyPromise=loadOrdered(historyModules).catch(error=>{historyPromise=null;throw error});
-    }
+    if(!historyPromise)historyPromise=loadOrdered(historyModules).catch(error=>{historyPromise=null;throw error});
     try{
       await historyPromise;
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -103,4 +93,11 @@
   };
 
   loadOrdered(coreModules).catch(error=>console.error('Quotation runtime failed to initialise',error));
+
+  // Register after the page has loaded so service-worker setup never blocks first paint.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('Offline cache unavailable',error));
+    },{once:true});
+  }
 })();
