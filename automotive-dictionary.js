@@ -58,6 +58,7 @@
     .then(()=>load('./memory-sanitizer.js'))
     .then(()=>load('./discount-preview.js'))
     .then(()=>load('./service-qty-display.js'))
+    .then(()=>load('./quantity-rules.js'))
     .then(()=>load('./preview-editor.js'))
     .then(()=>load('./pricing-integrity.js'))
     .then(()=>load('./calculation-audit.js'))
