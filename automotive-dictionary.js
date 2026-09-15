@@ -1,5 +1,5 @@
 // Alan's United Auto runtime bootstrap.
-// Normal quotation features are shipped as one production bundle. History stays on-demand.
+// Normal quotation features are shipped as compact production bundles. History stays on-demand.
 (function(){
   function loadScript(src){
     return new Promise((resolve,reject)=>{
@@ -13,14 +13,7 @@
   }
 
   function loadOrdered(sources){
-    return Promise.all(sources.map(src=>new Promise((resolve,reject)=>{
-      const script=document.createElement('script');
-      script.src=src;
-      script.async=false;
-      script.onload=()=>resolve(src);
-      script.onerror=()=>reject(new Error(`Unable to load ${src}`));
-      document.head.appendChild(script);
-    })));
+    return sources.reduce((promise,src)=>promise.then(()=>loadScript(src)),Promise.resolve());
   }
 
   function captureLocalPdfGenerator(){
@@ -67,7 +60,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
 
-  const corePromise=loadScript('./app-core.js').catch(error=>{
+  const corePromise=loadOrdered(['./app-core.js','./workflow-suite.js']).catch(error=>{
     console.error('Quotation runtime failed to initialise',error);
     throw error;
   });
