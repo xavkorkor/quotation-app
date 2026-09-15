@@ -106,7 +106,7 @@
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-row.aua-pdf-primary .aua-pdf-detail-value{
         font-size:14px;
-        font-weight:800;
+        font-weight:500;
         letter-spacing:.01em;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-phone-row[hidden]{display:none!important}
