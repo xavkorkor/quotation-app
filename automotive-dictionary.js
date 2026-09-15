@@ -71,5 +71,6 @@
     .then(()=>load('./quotation-readability.js'))
     .then(()=>load('./history-doubleclick.js'))
     .then(()=>load('./quotation-footer.js'))
+    .then(()=>load('./pdf-quality.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
