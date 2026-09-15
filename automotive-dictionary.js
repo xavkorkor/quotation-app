@@ -52,13 +52,25 @@
   function installPrivateSettlementToggle(){
     const CLAUSE_KEY='PRIVATE SETTLEMENT / GOODWILL QUOTATION';
     const CLAUSE_END='This quotation does not constitute an admission of liability by any party.';
+
+    function clauseActive(editor=document.getElementById('auaRemarksEditor')){
+      return !!editor&&String(editor.innerText||editor.textContent||'').toUpperCase().includes(CLAUSE_KEY);
+    }
+    function syncLabel(){
+      const button=document.getElementById('auaPrivateSettlementButton');
+      if(button)button.textContent=clauseActive()?'Private Settlement ×':'Private Settlement';
+    }
+
     document.addEventListener('click',event=>{
       const button=event.target?.closest?.('#auaPrivateSettlementButton');
       if(!button)return;
       const editor=document.getElementById('auaRemarksEditor');
       if(!editor)return;
       const existing=String(editor.innerText||editor.textContent||'').toUpperCase();
-      if(!existing.includes(CLAUSE_KEY))return;
+      if(!existing.includes(CLAUSE_KEY)){
+        setTimeout(syncLabel,0);
+        return;
+      }
 
       const html=String(editor.innerHTML||''),marker='<strong>'+CLAUSE_KEY+'</strong>';
       const start=html.indexOf(marker),endAt=html.indexOf(CLAUSE_END,start);
@@ -71,8 +83,19 @@
       while(html.slice(to,to+4)==='<br>')to+=4;
       editor.innerHTML=(html.slice(0,from)+html.slice(to)).replace(/^(?:<br>)+|(?:<br>)+$/g,'');
       editor.dispatchEvent(new Event('input',{bubbles:true}));
+      syncLabel();
       editor.focus();
     },true);
+
+    document.addEventListener('input',event=>{
+      if(event.target?.id==='auaRemarksEditor')syncLabel();
+    },true);
+
+    const syncWhenReady=(attempt=0)=>{
+      if(document.getElementById('auaPrivateSettlementButton')){syncLabel();return}
+      if(attempt<30)setTimeout(()=>syncWhenReady(attempt+1),100);
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>syncWhenReady(),{once:true});else syncWhenReady();
   }
 
   function startupGuards(){
