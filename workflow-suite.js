@@ -160,7 +160,7 @@
   }
   function signatureOf(snapshot){try{return JSON.stringify(snapshot)}catch{return''}}
   function flatItems(snapshot){
-    const map=new Map();(snapshot?.sections||[]).forEach((s,si)=>(s.items||[]).forEach((x,ii)=>{const d=normDesc(x.d||x.desc);if(!d)return;map.set(`${si}|${d}`,{d,q:text(x.q??x.qty),p:Number(x.p??x.price||0),included:!!x.included,section:text(s.title),index:ii})}));return map;
+    const map=new Map();(snapshot?.sections||[]).forEach((s,si)=>(s.items||[]).forEach((x,ii)=>{const d=normDesc(x.d||x.desc);if(!d)return;map.set(`${si}|${d}`,{d,q:text(x.q??x.qty),p:Number((x.p??x.price)||0),included:!!x.included,section:text(s.title),index:ii})}));return map;
   }
   function summarizeChanges(previous,current){
     if(!previous||!Object.keys(previous).length)return['Initial saved quotation'];const changes=[];
