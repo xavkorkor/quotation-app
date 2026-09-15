@@ -1,5 +1,5 @@
-// Style A: clearer customer / vehicle details on quotation preview and PDF only.
-// The editor-side Customer & Vehicle form is intentionally untouched.
+// Style A: one customer/vehicle PDF render path using the original preview fields directly.
+// No duplicate legacy detail block is created. Editor-side fields are untouched.
 (function(){
   const byId=id=>document.getElementById(id);
 
@@ -22,7 +22,6 @@
         font-size:10px;
         text-align:right;
       }
-      .paper .meta.aua-pdf-meta .aua-pdf-phone-sentinel{display:none!important}
       .paper .meta.aua-pdf-meta .aua-pdf-details{
         display:grid!important;
         grid-template-columns:1fr 1fr!important;
@@ -56,17 +55,17 @@
         letter-spacing:.08em;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-body{
-        display:grid;
-        gap:0;
+        display:grid!important;
+        gap:0!important;
         margin:0!important;
         padding:1.7mm 3mm 2.1mm!important;
         border:0!important;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-row{
-        display:grid;
-        grid-template-columns:27mm minmax(0,1fr);
-        gap:2.2mm;
-        align-items:baseline;
+        display:grid!important;
+        grid-template-columns:27mm minmax(0,1fr)!important;
+        gap:2.2mm!important;
+        align-items:baseline!important;
         min-height:7.4mm;
         margin:0!important;
         padding:1.2mm 0!important;
@@ -109,7 +108,7 @@
         font-weight:500;
         letter-spacing:.01em;
       }
-      .paper .meta.aua-pdf-meta .aua-pdf-phone-row[hidden]{display:none!important}
+      .paper .meta.aua-pdf-meta .aua-pdf-phone-row.aua-empty{display:none!important}
       @media(max-width:700px){
         .paper .meta.aua-pdf-meta .aua-pdf-details{grid-template-columns:1fr!important}
       }
@@ -120,51 +119,68 @@
     document.head.appendChild(style);
   }
 
-  function makeRow(label,node,primary=false,extraClass=''){
-    const row=document.createElement('div');
+  function removeTextNodes(node){
+    [...node.childNodes].forEach(child=>{
+      if(child.nodeType===Node.TEXT_NODE)child.remove();
+    });
+  }
+
+  function prepareRow(row,value,label,primary=false,extraClass=''){
+    removeTextNodes(row);
     row.className=`aua-pdf-detail-row${primary?' aua-pdf-primary':''}${extraClass?' '+extraClass:''}`;
-    const lab=document.createElement('span');
-    lab.className='aua-pdf-detail-label';
-    lab.textContent=label;
-    const val=document.createElement('span');
-    val.className='aua-pdf-detail-value';
-    if(node)val.appendChild(node);
-    row.append(lab,val);
+
+    const labelNode=document.createElement('span');
+    labelNode.className='aua-pdf-detail-label';
+    labelNode.textContent=label;
+
+    value.classList.add('aua-pdf-detail-value');
+    row.prepend(labelNode);
     return row;
   }
 
   function makeCard(title,rows){
     const card=document.createElement('section');
     card.className='aua-pdf-detail-card';
+
     const head=document.createElement('div');
     head.className='aua-pdf-detail-head';
     head.textContent=title;
+
     const body=document.createElement('div');
     body.className='aua-pdf-detail-body';
     rows.forEach(row=>body.appendChild(row));
+
     card.append(head,body);
     return card;
   }
 
   function install(){
     addStyles();
+
     const meta=document.querySelector('.paper .meta');
     if(!meta||meta.dataset.auaPdfDetails==='1')return;
 
     const pc=byId('pc'),pphone=byId('pphone'),pd=byId('pd');
     const pv=byId('pv'),pmod=byId('pmod'),pm=byId('pm');
-    const originalPhoneWrap=byId('pphoneWrap');
-    if(!pc||!pd||!pv||!pmod||!pm)return;
+    const phoneWrap=byId('pphoneWrap');
+    if(!pc||!pphone||!pd||!pv||!pmod||!pm||!phoneWrap)return;
 
-    const legacyNodes=[pc,pphone,pd,pv,pmod,pm].map(node=>node?.closest('.meta > div')).filter(Boolean);
-    const uniqueLegacy=[...new Set(legacyNodes)];
+    const customerWrap=pc.parentElement;
+    const dateWrap=pd.parentElement;
+    const vehicleWrap=pv.parentElement;
+    const mileageWrap=pm.parentElement;
+    const modelWrap=pmod.parentElement;
+    if(!customerWrap||!dateWrap||!vehicleWrap||!mileageWrap||!modelWrap)return;
 
-    const customerRow=makeRow('Name',pc,true);
-    const phoneRow=makeRow('Phone Number',pphone,false,'aua-pdf-phone-row');
-    const dateRow=makeRow('Date',pd);
-    const vehicleRow=makeRow('Vehicle No.',pv,true);
-    const modelRow=makeRow('Model / Type',pmod);
-    const mileageRow=makeRow('Mileage',pm);
+    // Phone originally lives inside the old customer line. Detach it and reuse it as its own row.
+    phoneWrap.remove();
+
+    const customerRow=prepareRow(customerWrap,pc,'Name',true);
+    const phoneRow=prepareRow(phoneWrap,pphone,'Phone Number',false,'aua-pdf-phone-row');
+    const dateRow=prepareRow(dateWrap,pd,'Date');
+    const vehicleRow=prepareRow(vehicleWrap,pv,'Vehicle No.',true);
+    const modelRow=prepareRow(modelWrap,pmod,'Model / Type');
+    const mileageRow=prepareRow(mileageWrap,pm,'Mileage');
 
     const details=document.createElement('div');
     details.className='aua-pdf-details';
@@ -173,29 +189,16 @@
       makeCard('VEHICLE DETAILS',[vehicleRow,modelRow,mileageRow])
     );
 
-    // Keep the original wrapper in the DOM because the base quotation updater still toggles it.
-    // The visible phone value itself is moved into the new Style A row above.
-    if(originalPhoneWrap){
-      originalPhoneWrap.classList.add('aua-pdf-phone-sentinel');
-      meta.appendChild(originalPhoneWrap);
-    }
-
-    uniqueLegacy.forEach(node=>node.remove());
     meta.appendChild(details);
     meta.classList.add('aua-pdf-meta');
     meta.dataset.auaPdfDetails='1';
 
     const phoneInput=byId('phone');
     const syncPhone=()=>{
-      const value=String(phoneInput?.value||pphone?.textContent||'').trim();
-      phoneRow.hidden=!value;
+      phoneRow.classList.toggle('aua-empty',!String(phoneInput?.value||'').trim());
     };
     phoneInput?.addEventListener('input',syncPhone);
     phoneInput?.addEventListener('change',syncPhone);
-    if(originalPhoneWrap){
-      new MutationObserver(syncPhone).observe(originalPhoneWrap,{attributes:true,attributeFilter:['style']});
-    }
-    if(pphone){new MutationObserver(syncPhone).observe(pphone,{childList:true,characterData:true,subtree:true})}
     syncPhone();
   }
 
