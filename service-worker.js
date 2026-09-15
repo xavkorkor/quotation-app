@@ -1,5 +1,5 @@
-const CACHE='au-quotation-v8';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./header_1.txt','./quotation-footer.js','./pdf-quality.js','./whatsapp-share-fix.js'];
+const CACHE='au-quotation-v9';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./header_1.txt','./quotation-footer.js','./pdf-quality.js','./whatsapp-share-fix.js','./customer-vehicle-layout.js'];
 self.addEventListener('install',event=>{
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
