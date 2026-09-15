@@ -84,6 +84,20 @@
     });
   }
 
+  function startupGuards(){
+    captureLocalPdfGenerator();
+    blockLegacyAutoMigration();
+    cleanupLegacyState();
+    disableCustomerVehicleHistory();
+    setTimeout(blockBackgroundPersistence,0);
+  }
+
+  // Register this listener immediately from the <head>, before online-storage.js registers
+  // its DOM-ready installer. That preserves the old migration/persistence protection while
+  // the rest of the runtime is allowed to load concurrently.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
+  else startupGuards();
+
   const modules=[
     './automotive-dictionary-core.js',
     // section-layout.js intentionally retired: the current section/action UI supersedes it.
@@ -124,14 +138,6 @@
 
   const ready=domReady();
   const scriptsReady=loadOrdered(modules);
-
-  ready.then(()=>{
-    captureLocalPdfGenerator();
-    blockLegacyAutoMigration();
-    cleanupLegacyState();
-    disableCustomerVehicleHistory();
-    setTimeout(blockBackgroundPersistence,0);
-  });
 
   function currentWorkspaceReady(){
     if(root.classList.contains('cloud-auth-gate'))return !!document.getElementById('cloudPanel');
