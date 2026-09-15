@@ -97,15 +97,15 @@
         overflow-wrap:anywhere;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-row.aua-pdf-primary{
-        min-height:9mm;
-        padding:1.5mm 0 1.7mm!important;
+        min-height:8.5mm;
+        padding:1.4mm 0 1.5mm!important;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-row.aua-pdf-primary .aua-pdf-detail-label{
         font-size:10.5px;
         font-weight:800;
       }
       .paper .meta.aua-pdf-meta .aua-pdf-detail-row.aua-pdf-primary .aua-pdf-detail-value{
-        font-size:15.5px;
+        font-size:14px;
         font-weight:800;
         letter-spacing:.01em;
       }
