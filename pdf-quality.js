@@ -1,4 +1,4 @@
-// Improves generated quotation PDF sharpness without changing the quotation layout.
+// Improves generated quotation PDF sharpness and keeps a single-page A4 quotation from spilling onto a blank second page.
 (function(){
   function install(){
     const original=window.html2pdf;
@@ -11,6 +11,14 @@
       worker.set=function(options){
         if(options&&typeof options==='object'){
           const next={...options};
+
+          // The quotation canvas is already A4 height (297 mm). The base generator used
+          // an additional 7 mm top + 10 mm bottom PDF margin, which made an otherwise
+          // one-page quotation overflow and created a trailing blank page. Use no
+          // vertical outer margin and a tiny horizontal fit margin so rounding cannot
+          // push the 210 mm-wide canvas beyond the A4 page boundary.
+          next.margin=[0,1,0,1];
+
           next.image={...(options.image||{}),type:'png',quality:1};
           next.html2canvas={
             ...(options.html2canvas||{}),
