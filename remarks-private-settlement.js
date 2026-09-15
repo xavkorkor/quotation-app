@@ -1,8 +1,9 @@
 // Optional Remarks preset for private-settlement quotations.
-// UI-only helper: inserts a pre-approved clause into the existing rich Remarks editor.
+// UI-only helper: toggles the pre-approved clause in the existing rich Remarks editor.
 (function(){
   const byId=id=>document.getElementById(id);
   const CLAUSE_KEY='PRIVATE SETTLEMENT / GOODWILL QUOTATION';
+  const CLAUSE_END='This quotation does not constitute an admission of liability by any party.';
   const CLAUSE_HTML=`<strong>PRIVATE SETTLEMENT / GOODWILL QUOTATION</strong><br><br>This quotation is issued strictly for the purpose of facilitating an amicable <strong>private settlement</strong> between the parties.<br><br>The prices stated in this quotation include <strong>special goodwill and commercial concessions offered solely for the purpose of private settlement</strong>. Such prices, including the prices of parts, labour and repair works, may be lower than the workshop's prevailing standard rates and <strong>shall not be regarded as the applicable rates for an insurance or third-party claim</strong>.<br><br>Should the matter subsequently proceed as an insurance or third-party claim, the private-settlement concessions stated herein shall no longer apply. Parts, labour and repair charges may instead be assessed based on the <strong>prevailing parts prices, supplier/OEM pricing, workshop rates, repair methodology, surveyor or insurer requirements and the actual scope of repairs applicable at the relevant time</strong>.<br><br>To preserve the vehicle in its pre-repair condition and comply with the applicable insurance inspection process, the damaged parts have <strong>not been dismantled, removed or disturbed</strong> at the time this quotation is prepared.<br><br>Accordingly, this quotation is based primarily on damage that is reasonably visible and identifiable during the initial inspection. <strong>Additional, consequential or hidden damage may only become apparent upon dismantling or during the course of repairs.</strong> Any additional parts, labour, materials or repairs subsequently found to be necessary shall be treated as supplementary items and charged accordingly.<br><br>In the event that the matter is referred to an insurer, solicitor, motor surveyor, loss adjuster or other claims representative, a <strong>separate repair quotation, supplementary quotation and/or final repair invoice may be issued</strong>, and the amount may differ from this private-settlement quotation.<br><br>Accordingly, the amount stated herein <strong>should not be relied upon as representing the final repair cost or quantum of any subsequent insurance or third-party claim</strong>.<br><br>This quotation does not constitute an admission of liability by any party.`;
 
   function ensureStyles(){
@@ -17,16 +18,30 @@
     document.head.appendChild(style);
   }
 
-  function insertClause(){
+  function removeClause(editor){
+    const html=String(editor.innerHTML||'');
+    const marker='<strong>'+CLAUSE_KEY+'</strong>';
+    const start=html.indexOf(marker);
+    if(start<0)return false;
+    const endAt=html.indexOf(CLAUSE_END,start);
+    if(endAt<0)return false;
+    let from=start,to=endAt+CLAUSE_END.length;
+    if(html.slice(Math.max(0,from-8),from)==='<br><br>')from-=8;
+    while(html.slice(to,to+4)==='<br>')to+=4;
+    editor.innerHTML=(html.slice(0,from)+html.slice(to)).replace(/^(?:<br>)+|(?:<br>)+$/g,'');
+    return true;
+  }
+
+  function toggleClause(){
     const editor=byId('auaRemarksEditor');
     if(!editor)return;
     const existing=String(editor.innerText||editor.textContent||'').toUpperCase();
     if(existing.includes(CLAUSE_KEY)){
-      alert('Private Settlement wording is already included in Remarks.');
-      return;
+      removeClause(editor);
+    }else{
+      const hasExisting=String(editor.innerText||editor.textContent||'').trim().length>0;
+      editor.innerHTML=`${editor.innerHTML}${hasExisting?'<br><br>':''}${CLAUSE_HTML}`;
     }
-    const hasExisting=String(editor.innerText||editor.textContent||'').trim().length>0;
-    editor.innerHTML=`${editor.innerHTML}${hasExisting?'<br><br>':''}${CLAUSE_HTML}`;
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     editor.focus();
   }
@@ -40,7 +55,7 @@
     row.className='aua-remarks-presets';
     row.innerHTML='<button id="auaPrivateSettlementButton" class="btn outline aua-private-settlement-btn" type="button">Private Settlement</button>';
     editor.insertAdjacentElement('afterend',row);
-    byId('auaPrivateSettlementButton').addEventListener('click',insertClause);
+    byId('auaPrivateSettlementButton').addEventListener('click',toggleClause);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>install(),{once:true});else install();
