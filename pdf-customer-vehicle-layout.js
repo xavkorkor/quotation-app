@@ -22,6 +22,7 @@
         font-size:10px;
         text-align:right;
       }
+      .paper .meta.aua-pdf-meta .aua-pdf-phone-sentinel{display:none!important}
       .paper .meta.aua-pdf-meta .aua-pdf-details{
         display:grid!important;
         grid-template-columns:1fr 1fr!important;
@@ -152,6 +153,7 @@
 
     const pc=byId('pc'),pphone=byId('pphone'),pd=byId('pd');
     const pv=byId('pv'),pmod=byId('pmod'),pm=byId('pm');
+    const originalPhoneWrap=byId('pphoneWrap');
     if(!pc||!pd||!pv||!pmod||!pm)return;
 
     const legacyNodes=[pc,pphone,pd,pv,pmod,pm].map(node=>node?.closest('.meta > div')).filter(Boolean);
@@ -171,13 +173,19 @@
       makeCard('VEHICLE DETAILS',[vehicleRow,modelRow,mileageRow])
     );
 
+    // Keep the original wrapper in the DOM because the base quotation updater still toggles it.
+    // The visible phone value itself is moved into the new Style A row above.
+    if(originalPhoneWrap){
+      originalPhoneWrap.classList.add('aua-pdf-phone-sentinel');
+      meta.appendChild(originalPhoneWrap);
+    }
+
     uniqueLegacy.forEach(node=>node.remove());
     meta.appendChild(details);
     meta.classList.add('aua-pdf-meta');
     meta.dataset.auaPdfDetails='1';
 
     const phoneInput=byId('phone');
-    const originalPhoneWrap=byId('pphoneWrap');
     const syncPhone=()=>{
       const value=String(phoneInput?.value||pphone?.textContent||'').trim();
       phoneRow.hidden=!value;
