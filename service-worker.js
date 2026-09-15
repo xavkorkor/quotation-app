@@ -1,4 +1,7 @@
-const CACHE='au-quotation-v23';
+const CACHE='au-quotation-v24';
+
+// Only files required for the normal quotation workflow are precached.
+// History modules are intentionally omitted and are cached only after History is opened.
 const ASSETS=[
   './',
   './index.html',
@@ -7,39 +10,21 @@ const ASSETS=[
   './interface-polish.css',
   './automotive-dictionary.js',
   './online-storage.js',
-  './automotive-dictionary-core.js',
-  './item-menu.js',
   './item-drag-drop.js',
   './typography-uppercase.js',
-  './section-discount-menu.js',
   './memory-sanitizer.js',
   './discount-preview.js',
-  './service-qty-display.js',
-  './quantity-rules.js',
   './preview-editor.js',
-  './pricing-integrity.js',
   './calculation-audit.js',
-  './history-enhancements.js',
-  './history-spacing-polish.js',
   './quotation-audit.js',
   './startup-fresh-quote.js',
   './quote-workflow.js',
-  './history-autofill-replace.js',
-  './history-tools.js',
   './unsaved-protection.js',
   './cloud-record-integrity.js',
-  './history-permanent-delete.js',
-  './ui-workspace-v1.js',
-  './quotation-actions-collapse.js',
-  './section-summary-auto.js',
   './ui-topbar-v2.js',
   './remarks-rich-format.js',
   './remarks-private-settlement.js',
   './quotation-readability.js',
-  './pdf-customer-vehicle-layout.js',
-  './history-doubleclick.js',
-  './quotation-footer.js',
-  './pdf-quality.js',
   './whatsapp-share-fix.js'
 ];
 
@@ -58,20 +43,10 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   const request=event.request;
   if(request.method!=='GET')return;
-
   const url=new URL(request.url);
-
-  // The legacy scan panel is removed by the current app, so do not download the old
-  // Tesseract OCR runtime on controlled page loads. Returning an empty JavaScript file
-  // preserves the old script tag harmlessly while eliminating its network/parse cost.
-  if(url.hostname==='cdn.jsdelivr.net'&&url.pathname.includes('/tesseract.js@5/')){
-    event.respondWith(new Response('',{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'public, max-age=31536000'}}));
-    return;
-  }
-
   if(url.origin!==self.location.origin)return;
 
-  // Navigations remain network-first so a newly deployed index/loader is picked up quickly.
+  // Navigations remain network-first so deployments are picked up promptly.
   if(request.mode==='navigate'){
     event.respondWith(
       fetch(request).then(response=>{
@@ -83,8 +58,7 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Static app files are served immediately from cache. A background request refreshes
-  // the cached copy without making the user wait on the network for every module.
+  // Active static files and any on-demand History files become cache-first after first use.
   event.respondWith(
     caches.match(request).then(cached=>{
       const refresh=fetch(request).then(response=>{
