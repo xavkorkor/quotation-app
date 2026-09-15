@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v22';
+const CACHE='au-quotation-v23';
 const ASSETS=[
   './',
   './index.html',
@@ -60,6 +60,15 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET')return;
 
   const url=new URL(request.url);
+
+  // The legacy scan panel is removed by the current app, so do not download the old
+  // Tesseract OCR runtime on controlled page loads. Returning an empty JavaScript file
+  // preserves the old script tag harmlessly while eliminating its network/parse cost.
+  if(url.hostname==='cdn.jsdelivr.net'&&url.pathname.includes('/tesseract.js@5/')){
+    event.respondWith(new Response('',{status:200,headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'public, max-age=31536000'}}));
+    return;
+  }
+
   if(url.origin!==self.location.origin)return;
 
   // Navigations remain network-first so a newly deployed index/loader is picked up quickly.
