@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v33';
+const CACHE='au-quotation-v34';
 
 // Normal quotation startup uses compact production bundles.
 // History files remain on-demand and are cached after first use.
