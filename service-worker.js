@@ -1,7 +1,7 @@
-const CACHE='au-quotation-v24';
+const CACHE='au-quotation-v25';
 
-// Only files required for the normal quotation workflow are precached.
-// History modules are intentionally omitted and are cached only after History is opened.
+// Normal quotation startup is now one production bundle.
+// History files remain on-demand and are cached after first use.
 const ASSETS=[
   './',
   './index.html',
@@ -9,23 +9,8 @@ const ASSETS=[
   './header_1.txt',
   './interface-polish.css',
   './automotive-dictionary.js',
-  './online-storage.js',
-  './item-drag-drop.js',
-  './typography-uppercase.js',
-  './memory-sanitizer.js',
-  './discount-preview.js',
-  './preview-editor.js',
-  './calculation-audit.js',
-  './quotation-audit.js',
-  './startup-fresh-quote.js',
-  './quote-workflow.js',
-  './unsaved-protection.js',
-  './cloud-record-integrity.js',
-  './ui-topbar-v2.js',
-  './remarks-rich-format.js',
-  './remarks-private-settlement.js',
-  './quotation-readability.js',
-  './whatsapp-share-fix.js'
+  './app-core.js',
+  './online-storage.js'
 ];
 
 self.addEventListener('install',event=>{
@@ -46,7 +31,6 @@ self.addEventListener('fetch',event=>{
   const url=new URL(request.url);
   if(url.origin!==self.location.origin)return;
 
-  // Navigations remain network-first so deployments are picked up promptly.
   if(request.mode==='navigate'){
     event.respondWith(
       fetch(request).then(response=>{
@@ -58,7 +42,6 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Active static files and any on-demand History files become cache-first after first use.
   event.respondWith(
     caches.match(request).then(cached=>{
       const refresh=fetch(request).then(response=>{
