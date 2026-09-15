@@ -18,6 +18,15 @@
     document.head.appendChild(style);
   }
 
+  function clauseActive(editor=byId('auaRemarksEditor')){
+    return !!editor&&String(editor.innerText||editor.textContent||'').toUpperCase().includes(CLAUSE_KEY);
+  }
+
+  function syncButtonLabel(){
+    const button=byId('auaPrivateSettlementButton');
+    if(button)button.textContent=clauseActive()?'Private Settlement ×':'Private Settlement';
+  }
+
   function removeClause(editor){
     const html=String(editor.innerHTML||'');
     const marker='<strong>'+CLAUSE_KEY+'</strong>';
@@ -35,14 +44,14 @@
   function toggleClause(){
     const editor=byId('auaRemarksEditor');
     if(!editor)return;
-    const existing=String(editor.innerText||editor.textContent||'').toUpperCase();
-    if(existing.includes(CLAUSE_KEY)){
+    if(clauseActive(editor)){
       removeClause(editor);
     }else{
       const hasExisting=String(editor.innerText||editor.textContent||'').trim().length>0;
       editor.innerHTML=`${editor.innerHTML}${hasExisting?'<br><br>':''}${CLAUSE_HTML}`;
     }
     editor.dispatchEvent(new Event('input',{bubbles:true}));
+    syncButtonLabel();
     editor.focus();
   }
 
@@ -50,12 +59,14 @@
     ensureStyles();
     const editor=byId('auaRemarksEditor');
     if(!editor){if(attempt<20)setTimeout(()=>install(attempt+1),200);return}
-    if(byId('auaPrivateSettlementButton'))return;
+    if(byId('auaPrivateSettlementButton')){syncButtonLabel();return}
     const row=document.createElement('div');
     row.className='aua-remarks-presets';
     row.innerHTML='<button id="auaPrivateSettlementButton" class="btn outline aua-private-settlement-btn" type="button">Private Settlement</button>';
     editor.insertAdjacentElement('afterend',row);
     byId('auaPrivateSettlementButton').addEventListener('click',toggleClause);
+    editor.addEventListener('input',syncButtonLabel);
+    syncButtonLabel();
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>install(),{once:true});else install();
