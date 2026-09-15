@@ -49,6 +49,32 @@
     });
   }
 
+  function installPrivateSettlementToggle(){
+    const CLAUSE_KEY='PRIVATE SETTLEMENT / GOODWILL QUOTATION';
+    const CLAUSE_END='This quotation does not constitute an admission of liability by any party.';
+    document.addEventListener('click',event=>{
+      const button=event.target?.closest?.('#auaPrivateSettlementButton');
+      if(!button)return;
+      const editor=document.getElementById('auaRemarksEditor');
+      if(!editor)return;
+      const existing=String(editor.innerText||editor.textContent||'').toUpperCase();
+      if(!existing.includes(CLAUSE_KEY))return;
+
+      const html=String(editor.innerHTML||''),marker='<strong>'+CLAUSE_KEY+'</strong>';
+      const start=html.indexOf(marker),endAt=html.indexOf(CLAUSE_END,start);
+      if(start<0||endAt<0)return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      let from=start,to=endAt+CLAUSE_END.length;
+      if(html.slice(Math.max(0,from-8),from)==='<br><br>')from-=8;
+      while(html.slice(to,to+4)==='<br>')to+=4;
+      editor.innerHTML=(html.slice(0,from)+html.slice(to)).replace(/^(?:<br>)+|(?:<br>)+$/g,'');
+      editor.dispatchEvent(new Event('input',{bubbles:true}));
+      editor.focus();
+    },true);
+  }
+
   function startupGuards(){
     captureLocalPdfGenerator();
     blockLegacyAutoMigration();
@@ -56,6 +82,8 @@
     disableCustomerVehicleHistory();
     setTimeout(blockBackgroundPersistence,0);
   }
+
+  installPrivateSettlementToggle();
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
