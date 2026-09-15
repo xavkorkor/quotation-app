@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v29';
+const CACHE='au-quotation-v30';
 
 // Normal quotation startup uses compact production bundles.
 // History files remain on-demand and are cached after first use.
@@ -11,6 +11,7 @@ const ASSETS=[
   './automotive-dictionary.js',
   './app-core.js',
   './workflow-suite.js',
+  './cloud-workshop-data.js',
   './online-storage.js'
 ];
 
