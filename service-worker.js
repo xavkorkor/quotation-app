@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v7';
+const CACHE='au-quotation-v8';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./header_1.txt','./quotation-footer.js','./pdf-quality.js','./whatsapp-share-fix.js'];
 self.addEventListener('install',event=>{
   self.skipWaiting();
