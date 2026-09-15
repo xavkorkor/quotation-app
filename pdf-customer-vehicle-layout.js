@@ -159,7 +159,7 @@
     const legacyNodes=[pc,pphone,pd,pv,pmod,pm].map(node=>node?.closest('.meta > div')).filter(Boolean);
     const uniqueLegacy=[...new Set(legacyNodes)];
 
-    const customerRow=makeRow('Customer Name',pc,true);
+    const customerRow=makeRow('Name',pc,true);
     const phoneRow=makeRow('Phone Number',pphone,false,'aua-pdf-phone-row');
     const dateRow=makeRow('Date',pd);
     const vehicleRow=makeRow('Vehicle No.',pv,true);
