@@ -108,6 +108,7 @@
         font-weight:500;
         letter-spacing:.01em;
       }
+      .paper .meta.aua-pdf-meta .aua-pdf-phone-row:not(.aua-empty){display:grid!important}
       .paper .meta.aua-pdf-meta .aua-pdf-phone-row.aua-empty{display:none!important}
       @media(max-width:700px){
         .paper .meta.aua-pdf-meta .aua-pdf-details{grid-template-columns:1fr!important}
@@ -195,7 +196,9 @@
 
     const phoneInput=byId('phone');
     const syncPhone=()=>{
-      phoneRow.classList.toggle('aua-empty',!String(phoneInput?.value||'').trim());
+      const hasPhone=Boolean(String(phoneInput?.value||'').trim());
+      phoneRow.classList.toggle('aua-empty',!hasPhone);
+      if(hasPhone)phoneRow.style.removeProperty('display');
     };
     phoneInput?.addEventListener('input',syncPhone);
     phoneInput?.addEventListener('change',syncPhone);
