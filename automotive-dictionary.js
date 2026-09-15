@@ -72,5 +72,6 @@
     .then(()=>load('./history-doubleclick.js'))
     .then(()=>load('./quotation-footer.js'))
     .then(()=>load('./pdf-quality.js'))
+    .then(()=>load('./whatsapp-share-fix.js'))
     .catch(err=>console.error('Automotive intelligence failed to load',err));
 })();
