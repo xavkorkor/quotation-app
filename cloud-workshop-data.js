@@ -1,9 +1,9 @@
 // Alan's United Auto - shared workshop data.
-// Cloud-synced user templates + one current master record per vehicle.
+// Fast cloud-synced user templates + one current master record per vehicle.
 (function(){
   const TEMPLATE_KEY='auaJobTemplatesV1';
   const TEMPLATE_MIGRATION_KEY='auaCloudTemplateMigrationV1';
-  const RECENT_KEY='auaRecentQuotesV1';
+  const MASTER_SEED_KEY='auaVehicleMasterSeedV2';
   const TEMPLATE_PREFIX='template|';
   const VEHICLE_PREFIX='vehicle-master|';
   const $=id=>document.getElementById(id);
@@ -11,20 +11,19 @@
   const text=value=>String(value??'').trim();
   const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
   const normVehicle=value=>text(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  let clientPromise=null,user=null,syncPromise=null,templates=[],masters=new Map(),refreshingPanel=false;
+  let clientPromise=null,user=null,syncPromise=null,templates=[],masters=new Map(),refreshingPanel=false,lastSyncedUser='',lastSyncAt=0,seedQueued=false;
 
   function status(message,tone='normal'){const el=$('cloudStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone}
   function reservedKey(key){const value=String(key||'');return value.startsWith(TEMPLATE_PREFIX)||value.startsWith(VEHICLE_PREFIX)}
   function reservedRecord(record){return reservedKey(record?.record_key||record?.key)||['job-template','vehicle-master'].includes(String(record?.data?.recordType||''))}
   function localTemplates(){try{const list=JSON.parse(localStorage.getItem(TEMPLATE_KEY)||'[]');return Array.isArray(list)?list.filter(t=>String(t?.id||'').startsWith('custom-')):[]}catch{return[]}}
   function setLocalTemplates(list){templates=clone(list||[]);localStorage.setItem(TEMPLATE_KEY,JSON.stringify(templates));document.dispatchEvent(new CustomEvent('aua-cloud-templates-updated',{detail:{count:templates.length}}));refreshTemplatePanel()}
-  function cleanRecentCache(){try{const list=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');if(!Array.isArray(list))return;const clean=list.filter(r=>!reservedRecord(r));if(clean.length!==list.length)localStorage.setItem(RECENT_KEY,JSON.stringify(clean))}catch{}}
 
   function installRecentFilter(attempt=0){
     const current=window.getRecent;if(typeof current!=='function'){if(attempt<30)setTimeout(()=>installRecentFilter(attempt+1),100);return}
     if(current.__auaWorkshopDataFiltered)return;
     function filtered(){const list=current.apply(this,arguments)||[];return Array.isArray(list)?list.filter(r=>!reservedRecord(r)):[]}
-    filtered.__auaWorkshopDataFiltered=true;filtered.__auaWorkshopDataBase=current;window.getRecent=filtered;cleanRecentCache();
+    filtered.__auaWorkshopDataFiltered=true;filtered.__auaWorkshopDataBase=current;window.getRecent=filtered;
   }
 
   async function cloudClient(){
@@ -40,16 +39,6 @@
   }
   async function session(){const client=await cloudClient(),{data,error}=await client.auth.getSession();if(error)throw error;user=data?.session?.user||null;if(!user)throw new Error('Sign in to sync workshop data.');return{client,user}}
   function row(recordKey,data,columns={}){return{user_id:columns.user_id||user?.id,record_key:recordKey,customer:text(columns.customer),vehicle:text(columns.vehicle),quote_date:columns.quote_date||null,model:text(columns.model),total:0,data:clone(data),updated_at:new Date().toISOString()}}
-
-  async function refreshNormalHistoryCache(){
-    const {client}=await session();
-    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at').not('record_key','like',`${TEMPLATE_PREFIX}%`).not('record_key','like',`${VEHICLE_PREFIX}%`).order('updated_at',{ascending:false}).limit(500);
-    if(error)throw error;
-    const recent=(data||[]).filter(r=>!reservedRecord(r)).map(r=>({key:r.record_key,ts:new Date(r.updated_at).getTime(),total:Number(r.total||0),data:r.data||{}}));
-    localStorage.setItem(RECENT_KEY,JSON.stringify(recent));
-    document.dispatchEvent(new CustomEvent('aua-history-updated',{detail:{count:recent.length}}));
-    return recent;
-  }
 
   // ---------- Shared job templates ----------
   const templateKey=id=>`${TEMPLATE_PREFIX}${String(id||'').toLowerCase()}`;
@@ -89,8 +78,7 @@
       const button=event.target?.closest?.('button');if(!button)return;
       if(button.id==='auaSaveSectionTemplate'){event.preventDefault();event.stopImmediatePropagation();saveSectionTemplate().catch(e=>status(e?.message||'Unable to save workshop template.','error'));return}
       if(button.matches('[data-aua-template-delete]')){event.preventDefault();event.stopImmediatePropagation();deleteTemplate(button.dataset.auaTemplateDelete).catch(e=>status(e?.message||'Unable to delete workshop template.','error'));return}
-      if(button.id==='auaTemplateTrigger'&&!refreshingPanel)setTimeout(()=>syncTemplates({silent:true}).catch(()=>{}),20);
-      if(button.id==='cloudRefresh')setTimeout(()=>syncAll({silent:true}).catch(()=>{}),350);
+      if(button.id==='cloudRefresh')setTimeout(()=>syncLight({silent:false,force:true}).catch(()=>{}),100);
     },true);
   }
 
@@ -102,12 +90,19 @@
     const next=new Map();(data||[]).forEach(r=>{const m=masterFromRow(r),key=normVehicle(m.vehicle);if(key&&!next.has(key))next.set(key,m)});masters=next;return masters;
   }
   async function seedMasters(){
+    if(masters.size||localStorage.getItem(MASTER_SEED_KEY)==='1')return 0;
     const {client,user:sessionUser}=await session(),{data,error}=await client.from('quotations').select('record_key,user_id,customer,vehicle,quote_date,model,data,updated_at').not('record_key','like',`${TEMPLATE_PREFIX}%`).not('record_key','like',`${VEHICLE_PREFIX}%`).order('updated_at',{ascending:false}).limit(1000);if(error)throw error;
     const latest=new Map(),uniqueQuotes=new Map();
     (data||[]).forEach(r=>{const d=r.data||{},key=normVehicle(d.vehicle||r.vehicle);if(!key)return;const quoteRef=text(d.quoteNumber)||String(r.record_key||'');uniqueQuotes.set(`${key}|${quoteRef}`,key);if(!latest.has(key))latest.set(key,r)});
     const counts=new Map();uniqueQuotes.forEach(key=>counts.set(key,(counts.get(key)||0)+1));const updates=[];
-    latest.forEach((r,key)=>{const d=r.data||{},existing=masters.get(key),quoteTime=new Date(r.updated_at||0).getTime()||0,masterTime=new Date(existing?.updatedAt||0).getTime()||0;if(existing&&masterTime>=quoteTime)return;const vehicle=text(d.vehicle||r.vehicle);if(!vehicle)return;const master={vehicle,customer:text(d.customer||r.customer),phone:text(d.phone),model:text(d.model||r.model),mileage:text(d.mileage),lastQuoteNumber:text(d.quoteNumber),lastQuotationDate:text(d.date||r.quote_date),quotationCount:counts.get(key)||0,updatedAt:new Date().toISOString(),updatedBy:text(d.audit?.lastEditedBy)||sessionUser.email||'staff'};updates.push(row(vehicleKey(vehicle),{recordType:'vehicle-master',...master},{user_id:existing?.user_id||sessionUser.id,customer:master.customer,vehicle,quote_date:master.lastQuotationDate||null,model:master.model}))});
-    if(updates.length){const {error:upsertError}=await client.from('quotations').upsert(updates,{onConflict:'record_key'});if(upsertError)throw upsertError;await fetchMasters()}return updates.length;
+    latest.forEach((r,key)=>{const d=r.data||{},vehicle=text(d.vehicle||r.vehicle);if(!vehicle)return;const master={vehicle,customer:text(d.customer||r.customer),phone:text(d.phone),model:text(d.model||r.model),mileage:text(d.mileage),lastQuoteNumber:text(d.quoteNumber),lastQuotationDate:text(d.date||r.quote_date),quotationCount:counts.get(key)||0,updatedAt:new Date().toISOString(),updatedBy:text(d.audit?.lastEditedBy)||sessionUser.email||'staff'};updates.push(row(vehicleKey(vehicle),{recordType:'vehicle-master',...master},{user_id:sessionUser.id,customer:master.customer,vehicle,quote_date:master.lastQuotationDate||null,model:master.model}))});
+    if(updates.length){const {error:upsertError}=await client.from('quotations').upsert(updates,{onConflict:'record_key'});if(upsertError)throw upsertError;await fetchMasters()}
+    localStorage.setItem(MASTER_SEED_KEY,'1');return updates.length;
+  }
+  function queueMasterSeed(){
+    if(seedQueued||masters.size||localStorage.getItem(MASTER_SEED_KEY)==='1')return;seedQueued=true;
+    const run=()=>seedMasters().catch(error=>console.warn('Vehicle master seed deferred.',error)).finally(()=>{seedQueued=false});
+    if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:5000});else setTimeout(run,2500);
   }
   function recentCount(vehicle){const key=normVehicle(vehicle),seen=new Set();try{(getRecent()||[]).forEach(r=>{if(normVehicle(r?.data?.vehicle)!==key)return;seen.add(text(r?.data?.quoteNumber)||String(r?.key||''))})}catch{}return seen.size}
   async function saveMaster(){
@@ -116,32 +111,44 @@
   }
   function setAutofill(id,value){const el=$(id);if(!el||value===undefined||value===null||value==='')return;el.value=String(value);el.dataset.auaHistoryAutofill='1'}
   function useMaster(m){setAutofill('customer',m.customer);setAutofill('phone',m.phone);setAutofill('model',m.model);setAutofill('mileage',m.mileage);if(typeof upd==='function')upd();$('auaSmartVehicleLookup')?.classList.remove('show')}
-  async function openHistory(vehicle){if(typeof window.auaOpenHistory==='function')await window.auaOpenHistory();for(let i=0;i<30;i++){const search=$('auaHistorySearch');if(search){search.value=vehicle;search.dispatchEvent(new Event('input',{bubbles:true}));return}await new Promise(r=>setTimeout(r,100))}}
+  async function openHistory(vehicle){if(typeof window.auaOpenHistory==='function')await window.auaOpenHistory();for(let i=0;i<20;i++){const search=$('auaHistorySearch');if(search){search.value=vehicle;search.dispatchEvent(new Event('input',{bubbles:true}));return}await new Promise(r=>setTimeout(r,75))}}
   function masterMatches(query){const key=normVehicle(query);if(!key)return[];return Array.from(masters.values()).filter(m=>normVehicle(m.vehicle).includes(key)).sort((a,b)=>{const ae=normVehicle(a.vehicle)===key?0:1,be=normVehicle(b.vehicle)===key?0:1;return ae-be||String(a.vehicle).localeCompare(String(b.vehicle),undefined,{numeric:true})}).slice(0,6)}
   function renderMaster(){
     const input=$('vehicle'),box=$('auaSmartVehicleLookup');if(!input||!box||!masters.size)return false;const key=normVehicle(input.value);if(key.length<2)return false;const matches=masterMatches(input.value);if(!matches.length)return false;const exact=matches.find(m=>normVehicle(m.vehicle)===key);
     if(exact){const count=Math.max(exact.quotationCount||0,recentCount(exact.vehicle));box.innerHTML=`<div class="aua-smart-vehicle-head"><div class="aua-smart-vehicle-title">${esc(exact.vehicle)} <span style="font-size:8px;color:#2563eb">VEHICLE MASTER</span></div><div class="aua-smart-vehicle-count">${count} quotation${count===1?'':'s'}</div></div><div class="aua-smart-vehicle-meta">${esc(exact.customer||'Customer not recorded')}${exact.model?' · '+esc(exact.model):''}${exact.mileage?' · '+esc(exact.mileage)+' km':''}</div><div class="aua-smart-vehicle-actions"><button class="btn secondary" type="button" data-aua-master-use>Use Master Details</button><button class="btn outline" type="button" data-aua-master-history>View History</button></div>`;box.classList.add('show');box.querySelector('[data-aua-master-use]').onclick=()=>useMaster(exact);box.querySelector('[data-aua-master-history]').onclick=()=>openHistory(exact.vehicle);return true}
     box.innerHTML=`<div class="aua-smart-vehicle-matches">${matches.map(m=>`<button class="aua-smart-match" type="button" data-aua-master-vehicle="${esc(m.vehicle)}"><b>${esc(m.vehicle)}</b><span>${esc(m.customer||m.model||'Vehicle master')}</span></button>`).join('')}</div>`;box.classList.add('show');box.querySelectorAll('[data-aua-master-vehicle]').forEach(b=>b.onclick=()=>{input.value=b.dataset.auaMasterVehicle||'';input.dispatchEvent(new Event('input',{bubbles:true}));setTimeout(renderMaster,30)});return true;
   }
-  function installMasterBridge(attempt=0){const input=$('vehicle');if(!input){if(attempt<30)setTimeout(()=>installMasterBridge(attempt+1),100);return}if(input.dataset.auaMasterBridge==='1')return;input.dataset.auaMasterBridge='1';const queue=()=>setTimeout(renderMaster,35);input.addEventListener('input',queue);input.addEventListener('focus',queue);document.addEventListener('aua-vehicle-master-updated',queue)}
+  function installMasterBridge(attempt=0){const input=$('vehicle');if(!input){if(attempt<30)setTimeout(()=>installMasterBridge(attempt+1),100);return}if(input.dataset.auaMasterBridge==='1')return;input.dataset.auaMasterBridge='1';let timer=null;const queue=()=>{clearTimeout(timer);timer=setTimeout(renderMaster,60)};input.addEventListener('input',queue);input.addEventListener('focus',queue);document.addEventListener('aua-vehicle-master-updated',queue)}
 
   function installFinalSaveHook(){
     const current=window.saveRecord;if(typeof current!=='function'){setTimeout(installFinalSaveHook,200);return}if(current.__auaWorkshopMasterSave)return;
     async function wrapped(){const result=await current.apply(this,arguments);if(result===false)return result;try{await saveMaster()}catch(error){status(`Quotation saved, but vehicle master could not sync: ${error?.message||'unknown error'}`,'error')}return result}
     wrapped.__auaWorkshopMasterSave=true;wrapped.__auaWorkshopMasterBase=current;window.saveRecord=wrapped;
   }
-  function scheduleFinalSaveHook(){const arm=()=>setTimeout(installFinalSaveHook,500);if(document.readyState==='complete')arm();else window.addEventListener('load',arm,{once:true})}
+  function scheduleFinalSaveHook(){const arm=()=>setTimeout(installFinalSaveHook,400);if(document.readyState==='complete')arm();else window.addEventListener('load',arm,{once:true})}
 
-  async function syncAll({silent=true}={}){
-    if(syncPromise)return syncPromise;syncPromise=(async()=>{await syncTemplates({silent:true});await fetchMasters();const seeded=await seedMasters();await refreshNormalHistoryCache();if(!silent)status(`Workshop data synced · ${templates.length} template${templates.length===1?'':'s'} · ${masters.size} vehicle master${masters.size===1?'':'s'}${seeded?' · '+seeded+' updated':''}.`,'success');renderMaster();return{templates:templates.length,masters:masters.size,seeded}})().finally(()=>{syncPromise=null});return syncPromise;
+  async function syncLight({silent=true,force=false}={}){
+    if(!user)return null;
+    const now=Date.now();if(!force&&lastSyncedUser===user.id&&now-lastSyncAt<30000)return{templates:templates.length,masters:masters.size};
+    if(syncPromise)return syncPromise;
+    syncPromise=(async()=>{
+      const results=await Promise.allSettled([syncTemplates({silent:true}),fetchMasters()]);
+      const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;
+      lastSyncedUser=user.id;lastSyncAt=Date.now();queueMasterSeed();renderMaster();
+      if(!silent)status(`Workshop data synced · ${templates.length} template${templates.length===1?'':'s'} · ${masters.size} vehicle master${masters.size===1?'':'s'}.`,'success');
+      return{templates:templates.length,masters:masters.size};
+    })().finally(()=>{syncPromise=null});return syncPromise;
   }
   async function installCloud(){
-    try{const client=await cloudClient();client.auth.onAuthStateChange((_event,s)=>{user=s?.user||null;if(user)setTimeout(()=>syncAll({silent:true}).catch(()=>{}),120);else{templates=[];masters.clear()}});const {data}=await client.auth.getSession();user=data?.session?.user||null;if(user)await syncAll({silent:true})}catch(error){console.warn('Shared workshop data will retry after sign-in.',error)}
+    try{
+      const client=await cloudClient();
+      client.auth.onAuthStateChange((_event,s)=>{const next=s?.user||null,userChanged=next?.id!==user?.id;user=next;if(!user){templates=[];masters.clear();lastSyncedUser='';return}if(userChanged)setTimeout(()=>syncLight({silent:true}).catch(()=>{}),150)});
+      const {data}=await client.auth.getSession();user=data?.session?.user||null;if(user)syncLight({silent:true}).catch(error=>console.warn('Workshop data sync deferred.',error));
+    }catch(error){console.warn('Shared workshop data will retry after sign-in.',error)}
   }
 
-  window.AUAWorkshopCloud={refresh:()=>syncAll({silent:false}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster};
+  window.AUAWorkshopCloud={refresh:()=>syncLight({silent:false,force:true}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster};
 
   installRecentFilter();installTemplateBridge();installMasterBridge();scheduleFinalSaveHook();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installRecentFilter();installMasterBridge();installCloud()},{once:true});else installCloud();
-  window.addEventListener('load',()=>{setTimeout(cleanRecentCache,700);setTimeout(()=>refreshNormalHistoryCache().catch(()=>{}),1800)},{once:true});
 })();
