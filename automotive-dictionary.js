@@ -111,7 +111,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
 
-  const corePromise=loadOrdered(['./app-core.js','./workflow-suite.js','./preflight-reminder-only.js','./cloud-workshop-data.js']).catch(error=>{
+  const corePromise=loadOrdered(['./app-core.js','./history-stability-guard.js','./workflow-suite.js','./preflight-reminder-only.js','./cloud-workshop-data.js']).catch(error=>{
     console.error('Quotation runtime failed to initialise',error);
     throw error;
   });
@@ -161,7 +161,6 @@
     enforceUserOwnedTemplateUi();
   });
 
-  // History remains a separate workspace and is fetched only when requested.
   const historyModules=[
     './history-enhancements.js',
     './history-spacing-polish.js',
@@ -171,14 +170,29 @@
   ];
   let historyPromise=null;
 
+  function loadHistoryRuntime(){
+    if(historyPromise)return historyPromise;
+    historyPromise=loadScript(historyModules[0])
+      .then(()=>Promise.all(historyModules.slice(1).map(loadScript)))
+      .catch(error=>{historyPromise=null;throw error});
+    return historyPromise;
+  }
+
+  function warmHistoryAssets(){
+    Promise.all(historyModules.map(src=>fetch(src,{cache:'force-cache'}).catch(()=>null))).catch(()=>{});
+  }
+
+  corePromise.then(()=>{
+    const warm=()=>warmHistoryAssets();
+    if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:2500});
+    else setTimeout(warm,1200);
+  }).catch(()=>{});
+
   window.auaOpenHistory=async function(){
     try{
       await corePromise;
-      if(!historyPromise){
-        historyPromise=loadOrdered(historyModules).catch(error=>{historyPromise=null;throw error});
-      }
-      await historyPromise;
-      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      await loadHistoryRuntime();
+      await new Promise(resolve=>requestAnimationFrame(resolve));
       document.getElementById('cloudRecordsTab')?.click();
     }catch(error){
       console.error('History could not load',error);
