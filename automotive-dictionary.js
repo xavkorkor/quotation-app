@@ -178,12 +178,9 @@
     return historyPromise;
   }
 
-  function warmHistoryAssets(){
-    Promise.all(historyModules.map(src=>fetch(src,{cache:'force-cache'}).catch(()=>null))).catch(()=>{});
-  }
-
+  // Build the hidden History UI only when the browser is idle. No quotation cloud fetch runs here.
   corePromise.then(()=>{
-    const warm=()=>warmHistoryAssets();
+    const warm=()=>loadHistoryRuntime().catch(error=>console.warn('History warm-up deferred.',error));
     if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:2500});
     else setTimeout(warm,1200);
   }).catch(()=>{});
