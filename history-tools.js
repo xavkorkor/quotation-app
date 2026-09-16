@@ -77,9 +77,26 @@
     byId('auaHistVehicle').addEventListener('input',refreshRows);
     byId('auaHistStatus').addEventListener('change',refreshRows);
     byId('auaHistStaff').addEventListener('change',refreshRows);
-    byId('auaHistReset').onclick=()=>{
-      ['auaHistCustomer','auaHistVehicle','auaHistStatus','auaHistStaff'].forEach(id=>{const el=byId(id);if(el)el.value=''});
-      refreshRows();
+    byId('auaHistReset').onclick=async()=>{
+      const setValue=(id,value='')=>{const el=byId(id);if(el)el.value=value};
+      setValue('auaHistorySearch');
+      setValue('cloudRecordSearch');
+      setValue('auaHistCustomer');
+      setValue('auaHistVehicle');
+      setValue('auaHistStatus');
+      setValue('auaHistStaff');
+      setValue('auaHistArchive','active');
+      setValue('auaHistorySort','updated-desc');
+      const overlay=byId('auaHistoryOverlay');
+      overlay?.querySelectorAll('[data-aua-filter]').forEach(chip=>chip.classList.toggle('active',chip.dataset.auaFilter==='all'));
+      const search=byId('auaHistorySearch'),baseInput=search?.__auaBaseHistoryInput;
+      if(search&&typeof baseInput==='function')baseInput.call(search,{target:search});
+      const refresh=byId('auaHistoryRefresh');
+      if(refresh&&typeof refresh.onclick==='function'){
+        const result=refresh.onclick();
+        if(result&&typeof result.then==='function')await result;
+      }else refreshRows();
+      byId('auaHistorySearch')?.focus();
     };
     return true;
   }
