@@ -1,7 +1,7 @@
-const CACHE='au-quotation-v36';
+const CACHE='au-quotation-v37';
 
 // Normal quotation startup uses compact production bundles.
-// History files remain on-demand and are cached after first use.
+// History stays lazy-executed, but its assets are warmed into the offline cache.
 const ASSETS=[
   './',
   './index.html',
@@ -10,10 +10,16 @@ const ASSETS=[
   './interface-polish.css',
   './automotive-dictionary.js',
   './app-core.js',
+  './history-stability-guard.js',
   './workflow-suite.js',
   './preflight-reminder-only.js',
   './cloud-workshop-data.js',
-  './online-storage.js'
+  './online-storage.js',
+  './history-enhancements.js',
+  './history-spacing-polish.js',
+  './history-tools.js',
+  './history-permanent-delete.js',
+  './history-doubleclick.js'
 ];
 
 self.addEventListener('install',event=>{
