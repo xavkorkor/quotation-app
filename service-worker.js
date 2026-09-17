@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v38';
+const CACHE='au-quotation-v39';
 
 // Normal quotation startup uses compact production bundles.
 // History stays lazy-executed, but its assets are warmed into the offline cache.
@@ -14,6 +14,7 @@ const ASSETS=[
   './workflow-suite.js',
   './preflight-reminder-only.js',
   './cloud-workshop-data.js',
+  './operations-suite.js',
   './online-storage.js',
   './history-enhancements.js',
   './history-spacing-polish.js',
