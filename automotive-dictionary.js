@@ -111,7 +111,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
 
-  const corePromise=loadOrdered(['./app-core.js','./history-stability-guard.js','./workflow-suite.js','./preflight-reminder-only.js','./cloud-workshop-data.js']).catch(error=>{
+  const corePromise=loadOrdered(['./app-core.js','./history-stability-guard.js','./workflow-suite.js','./preflight-reminder-only.js','./cloud-workshop-data.js','./operations-suite.js']).catch(error=>{
     console.error('Quotation runtime failed to initialise',error);
     throw error;
   });
