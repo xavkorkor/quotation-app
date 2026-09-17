@@ -1,6 +1,6 @@
 // Stable quotation workflow metadata: status, quotation number and vehicle lookup.
 (function(){
-  const STATUS_OPTIONS=['Draft','Sent','Approved','Completed','Cancelled'];
+  const STATUS_OPTIONS=['Draft','Sent','Approved','Job In Progress','Completed','Cancelled'];
   let quoteNumber='';
   let quoteStatus='Draft';
 
