@@ -1,7 +1,7 @@
 // Consolidated History runtime: filters, status, vehicle history and quotation-number search.
 (function(){
   const byId=id=>document.getElementById(id);
-  const STATUS=['Draft','Sent','Approved','Completed','Cancelled'];
+  const STATUS=['Draft','Sent','Approved','Job In Progress','Completed','Cancelled'];
   const text=value=>String(value??'').trim();
   const norm=value=>text(value).toLowerCase();
   const normVehicle=value=>text(value).toUpperCase().replace(/\s+/g,'');
@@ -18,7 +18,7 @@
   function statusClass(status){
     if(status==='Sent'||status==='Approved')return 'aua-status-green';
     if(status==='Cancelled')return 'aua-status-red';
-    if(status==='Completed')return 'aua-status-blue';
+    if(status==='Completed'||status==='Job In Progress')return 'aua-status-blue';
     return 'aua-status-grey';
   }
   function dateFor(record){
