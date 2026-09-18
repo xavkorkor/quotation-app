@@ -166,7 +166,7 @@
     saveRecord=function(){return explicitSave()};
 
     // PDF/WhatsApp generation stays local-only and must not auto-create an online record.
-    if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
+    
 
     const cloudSave=document.getElementById('cloudSave');
     if(cloudSave){
