@@ -49,6 +49,12 @@
     ensureStyles();
 
     const status=byId('auaQuoteStatus');
+    if(status){
+      const options=Array.from(status.options).map(option=>option.value||option.textContent);
+      if(options.join('|')!==STATUS_OPTIONS.join('|')){
+        status.innerHTML=STATUS_OPTIONS.map(value=>`<option value="${value}">${value}</option>`).join('');
+      }
+    }
     if(status&&status.dataset.auaStatusBound!=='1'){
       status.dataset.auaStatusBound='1';
       status.addEventListener('change',e=>{
@@ -90,17 +96,20 @@
 
   function injectVehicleLookup(){
     const input=byId('vehicle');
-    if(!input||byId('auaVehicleLookupList'))return;
-    const list=document.createElement('datalist');
-    list.id='auaVehicleLookupList';
-    document.body.appendChild(list);
-    input.setAttribute('list','auaVehicleLookupList');
+    if(!input)return;
 
-    const suggestion=document.createElement('div');
-    suggestion.id='auaVehicleSuggestion';
-    suggestion.className='aua-vehicle-suggestion';
-    input.insertAdjacentElement('afterend',suggestion);
+    let list=byId('auaVehicleLookupList');
+    if(!list){
+      list=document.createElement('datalist');
+      list.id='auaVehicleLookupList';
+      document.body.appendChild(list);
+      input.setAttribute('list','auaVehicleLookupList');
+    }
 
+    if(input.dataset.auaVehicleListBound==='1')return;
+    input.dataset.auaVehicleListBound='1';
+
+    let lastSignature='';
     const refreshList=()=>{
       const seen=new Set(),items=[];
       records().slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).forEach(record=>{
@@ -109,36 +118,14 @@
         if(!key||seen.has(key))return;
         seen.add(key);items.push(vehicle);
       });
-      list.innerHTML=items.slice(0,100).map(v=>`<option value="${String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></option>`).join('');
-    };
-
-    const updateSuggestion=()=>{
-      refreshList();
-      const key=normalVehicle(input.value);
-      if(!key){suggestion.style.display='none';suggestion.innerHTML='';return}
-      const matches=records().filter(r=>normalVehicle(r?.data?.vehicle)===key).sort((a,b)=>Number(b.ts||0)-Number(a.ts||0));
-      const record=matches[0];
-      if(!record){suggestion.style.display='none';suggestion.innerHTML='';return}
-      const d=record.data||{};
-      const bits=[d.customer,d.model].filter(Boolean).join(' · ');
-      suggestion.innerHTML=`<button type="button">Use previous details${bits?`: ${escapeHtml(bits)}`:''}</button>`;
-      suggestion.style.display='block';
-      suggestion.querySelector('button').onclick=()=>{
-        const customer=byId('customer'),phone=byId('phone'),model=byId('model');
-        if(d.customer&&customer){customer.value=d.customer;markAutofill(customer)}
-        if(d.phone&&phone){phone.value=d.phone;markAutofill(phone)}
-        if(d.model&&model){model.value=d.model;markAutofill(model)}
-        suggestion.style.display='none';
-        if(typeof upd==='function')upd();
-      };
+      const next=items.slice(0,100),signature=next.join('|');
+      if(signature===lastSignature)return;
+      lastSignature=signature;
+      list.innerHTML=next.map(v=>`<option value="${String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></option>`).join('');
     };
 
     input.addEventListener('focus',refreshList);
-    input.addEventListener('input',updateSuggestion);
-  }
-
-  function escapeHtml(value){
-    return String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+    document.addEventListener('aua-history-updated',refreshList);
   }
 
   function installHooks(){
