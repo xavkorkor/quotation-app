@@ -11,7 +11,7 @@
   const text=value=>String(value??'').trim();
   const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
   const normVehicle=value=>text(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  let clientPromise=null,user=null,syncPromise=null,templates=[],masters=new Map(),refreshingPanel=false,lastSyncedUser='',lastSyncAt=0,seedQueued=false;
+  let clientPromise=null,user=null,syncPromise=null,templates=[],masters=new Map(),lastSyncedUser='',lastSyncAt=0,seedQueued=false;
 
   function status(message,tone='normal'){const el=$('cloudStatus');if(!el)return;el.textContent=message;el.dataset.tone=tone}
   function reservedKey(key){const value=String(key||'');return value.startsWith(TEMPLATE_PREFIX)||value.startsWith(VEHICLE_PREFIX)}
@@ -71,7 +71,8 @@
   }
   async function deleteTemplate(id){const before=localTemplates(),target=before.find(t=>String(t.id)===String(id));setLocalTemplates(before.filter(t=>String(t.id)!==String(id)));try{await removeTemplate(id);status(`Template${target?.name?' “'+target.name+'”':''} deleted from the workshop.`,'success')}catch(error){setLocalTemplates(before);status(error?.message||'Unable to delete the workshop template.','error')}}
   function refreshTemplatePanel(){
-    const trigger=$('auaTemplateTrigger'),panel=$('auaTemplatePanel');if(!trigger||!panel||!panel.classList.contains('show')||refreshingPanel)return;refreshingPanel=true;try{trigger.onclick?.();trigger.onclick?.()}finally{setTimeout(()=>{refreshingPanel=false},0)}
+    const panel=$('auaTemplatePanel');if(!panel||!panel.classList.contains('show'))return;
+    window.AUARenderTemplatePanel?.();
   }
   function installTemplateBridge(){
     document.addEventListener('click',event=>{
@@ -109,6 +110,25 @@
     if(typeof state!=='function')return false;const data=clone(state()),vehicle=text(data.vehicle);if(!vehicle)return false;const {client,user:sessionUser}=await session(),key=normVehicle(vehicle),existing=masters.get(key),master={vehicle,customer:text(data.customer),phone:text(data.phone),model:text(data.model),mileage:text(data.mileage),lastQuoteNumber:text(data.quoteNumber),lastQuotationDate:text(data.date),quotationCount:Math.max(Number(existing?.quotationCount||0),recentCount(vehicle)),updatedAt:new Date().toISOString(),updatedBy:text(data.audit?.lastEditedBy)||sessionUser.email||'staff'};
     const record=row(vehicleKey(vehicle),{recordType:'vehicle-master',...master},{user_id:existing?.user_id||sessionUser.id,customer:master.customer,vehicle,quote_date:master.lastQuotationDate||null,model:master.model}),{error}=await client.from('quotations').upsert(record,{onConflict:'record_key'});if(error)throw error;masters.set(key,{...master,recordKey:record.record_key,user_id:record.user_id});document.dispatchEvent(new CustomEvent('aua-vehicle-master-updated',{detail:{vehicle}}));return true;
   }
+  async function updateVehicleMaster(vehicle,changes={}){
+    const key=normVehicle(vehicle),existing=masters.get(key);if(!key||!existing)throw new Error('Vehicle master could not be found.');
+    const {client,user:sessionUser}=await session(),now=new Date().toISOString();
+    const master={
+      ...existing,
+      customer:changes.customer===undefined?text(existing.customer):text(changes.customer),
+      phone:changes.phone===undefined?text(existing.phone):text(changes.phone),
+      model:changes.model===undefined?text(existing.model):text(changes.model),
+      mileage:changes.mileage===undefined?text(existing.mileage):text(changes.mileage),
+      updatedAt:now,
+      updatedBy:sessionUser.email||'staff'
+    };
+    const record=row(vehicleKey(existing.vehicle),{recordType:'vehicle-master',...master},{user_id:existing.user_id||sessionUser.id,customer:master.customer,vehicle:existing.vehicle,quote_date:master.lastQuotationDate||null,model:master.model});
+    const {error}=await client.from('quotations').upsert(record,{onConflict:'record_key'});if(error)throw error;
+    masters.set(key,{...master,recordKey:record.record_key,user_id:record.user_id});
+    document.dispatchEvent(new CustomEvent('aua-vehicle-master-updated',{detail:{vehicle:existing.vehicle}}));
+    return clone(masters.get(key));
+  }
+
   function setAutofill(id,value){const el=$(id);if(!el||value===undefined||value===null||value==='')return;el.value=String(value);el.dataset.auaHistoryAutofill='1'}
   function useMaster(m){setAutofill('customer',m.customer);setAutofill('phone',m.phone);setAutofill('model',m.model);setAutofill('mileage',m.mileage);if(typeof upd==='function')upd();$('auaSmartVehicleLookup')?.classList.remove('show')}
   async function openHistory(vehicle){if(typeof window.auaOpenHistory==='function')await window.auaOpenHistory();for(let i=0;i<20;i++){const search=$('auaHistorySearch');if(search){search.value=vehicle;search.dispatchEvent(new Event('input',{bubbles:true}));return}await new Promise(r=>setTimeout(r,75))}}
@@ -147,7 +167,7 @@
     }catch(error){console.warn('Shared workshop data will retry after sign-in.',error)}
   }
 
-  window.AUAWorkshopCloud={refresh:()=>syncLight({silent:false,force:true}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster};
+  window.AUAWorkshopCloud={refresh:()=>syncLight({silent:false,force:true}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster,updateVehicleMaster};
 
   installRecentFilter();installTemplateBridge();installMasterBridge();scheduleFinalSaveHook();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installRecentFilter();installMasterBridge();installCloud()},{once:true});else installCloud();
