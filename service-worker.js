@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v41';
+const CACHE='au-quotation-v42';
 
 // Normal quotation startup uses compact production bundles.
 // History executes on demand; its assets remain available in the offline cache.
@@ -52,14 +52,14 @@ self.addEventListener('fetch',event=>{
 
   event.respondWith(
     caches.match(request).then(cached=>{
-      const refresh=fetch(request).then(response=>{
+      if(cached)return cached;
+      return fetch(request).then(response=>{
         if(response&&response.ok){
           const copy=response.clone();
           caches.open(CACHE).then(cache=>cache.put(request,copy));
         }
         return response;
-      }).catch(()=>cached);
-      return cached||refresh;
+      });
     })
   );
 });
