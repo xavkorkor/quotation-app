@@ -2,13 +2,47 @@
 (function(){
   let cleanSnapshot='';
   let forcedDirty=false;
+  const text=value=>String(value??'').trim();
 
-  function snapshot(){
-    try{return typeof state==='function'?JSON.stringify(state()):''}catch{return''}
+  function currentState(){
+    try{return typeof state==='function'?state():null}catch{return null}
+  }
+  function snapshot(data=currentState()){
+    try{return data?JSON.stringify(data):''}catch{return''}
+  }
+  function hasMeaningfulContent(data=currentState()){
+    if(!data)return false;
+
+    // Generated date, quotation number, revision/audit metadata and default settings do not
+    // count as user work. A fresh untouched quotation should always be safe to replace.
+    if([data.customer,data.phone,data.vehicle,data.mileage,data.model,data.remarks].some(value=>text(value)))return true;
+    if(text(data.overallDisc)&&Number(data.overallDisc)!==0)return true;
+    if(text(data.status)&&text(data.status)!=='Draft')return true;
+
+    const sections=Array.isArray(data.sections)?data.sections:[];
+    return sections.some(section=>{
+      const title=text(section?.title).toUpperCase();
+      if(title&&title!=='REPAIR / SERVICE')return true;
+      if(text(section?.dv)&&Number(section.dv)!==0)return true;
+
+      return(Array.isArray(section?.items)?section.items:[]).some(item=>{
+        const description=text(item?.d??item?.desc);
+        const price=text(item?.p??item?.price);
+        const discount=text(item?.dv);
+        const quantity=text(item?.q??item?.qty??item?.quantity);
+        if(description||price)return true;
+        if(discount&&Number(discount)!==0)return true;
+        if(item?.included)return true;
+        // "1 pc" is the app's automatic blank-row quantity and is not user work.
+        return !!quantity&&!/^1(?:\s*pc)?$/i.test(quantity);
+      });
+    });
   }
   function markClean(){cleanSnapshot=snapshot();forcedDirty=false}
   function isDirty(){
-    const current=snapshot();
+    const data=currentState();
+    if(!hasMeaningfulContent(data))return false;
+    const current=snapshot(data);
     return forcedDirty||!!(cleanSnapshot&&current&&current!==cleanSnapshot);
   }
   function confirmDiscard(message){return !isDirty()||window.confirm(message||'You have unsaved quotation changes. Continue without saving?')}
@@ -24,7 +58,7 @@
     return result;
   }
 
-  window.AUAUnsavedProtection=Object.assign(window.AUAUnsavedProtection||{},{markClean,isDirty,confirmDiscard});
+  window.AUAUnsavedProtection=Object.assign(window.AUAUnsavedProtection||{},{markClean,isDirty,confirmDiscard,hasMeaningfulContent});
 
   function installFunctionHooks(){
     if(typeof state!=='function'||typeof loadRecord!=='function'||typeof newQuote!=='function'||typeof duplicateQuote!=='function'||typeof saveRecord!=='function'||typeof saveRecent!=='function')return false;
