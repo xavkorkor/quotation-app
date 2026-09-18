@@ -27,8 +27,8 @@
       html:not(.cloud-auth-gate) #cloudPanelTitle{display:none!important}
       html:not(.cloud-auth-gate) #cloudSignedIn:not([hidden]){
         display:grid;
-        grid-template-columns:minmax(0,1fr) auto auto auto;
-        gap:6px;
+        grid-template-columns:minmax(96px,1fr) repeat(5,auto);
+        gap:5px;
         align-items:center;
       }
       html:not(.cloud-auth-gate) #cloudSignedIn>.toolbar{display:contents}
@@ -67,23 +67,27 @@
       }
       html:not(.cloud-auth-gate) #cloudRefresh,
       html:not(.cloud-auth-gate) #cloudExport,
-      html:not(.cloud-auth-gate) #cloudSignOut{
+      html:not(.cloud-auth-gate) #cloudSignOut,
+      html:not(.cloud-auth-gate) #auaVehicleMasterManagerBtn,
+      html:not(.cloud-auth-gate) #auaSystemHealthBtn{
         width:auto;
-        min-height:30px;
+        min-height:29px;
         margin:0;
-        padding:6px 9px;
+        padding:5px 8px;
         border-radius:8px;
         background:#fff;
         color:#475569;
         border:1px solid #d5dee9;
         box-shadow:none;
-        font-size:9.5px;
+        font-size:9px;
         font-weight:750;
         white-space:nowrap;
       }
       html:not(.cloud-auth-gate) #cloudRefresh:hover,
       html:not(.cloud-auth-gate) #cloudExport:hover,
-      html:not(.cloud-auth-gate) #cloudSignOut:hover{background:#f8fafc;border-color:#bdcad8;transform:none}
+      html:not(.cloud-auth-gate) #cloudSignOut:hover,
+      html:not(.cloud-auth-gate) #auaVehicleMasterManagerBtn:hover,
+      html:not(.cloud-auth-gate) #auaSystemHealthBtn:hover{background:#f8fafc;border-color:#bdcad8;transform:none}
       html:not(.cloud-auth-gate) #cloudSignOut{color:#64748b}
       html:not(.cloud-auth-gate) #cloudStatus{
         margin:6px 0 0;
@@ -103,16 +107,25 @@
         html:not(.cloud-auth-gate) .aua-workspace-header{margin:0 -16px 14px}
       }
       @media(max-width:620px){
-        html:not(.cloud-auth-gate) #cloudSignedIn:not([hidden]){grid-template-columns:minmax(0,1fr) auto auto}
-        html:not(.cloud-auth-gate) #cloudSignOut{grid-column:2/4;width:100%}
+        html:not(.cloud-auth-gate) #cloudSignedIn:not([hidden]){grid-template-columns:repeat(3,minmax(0,1fr))}
+        html:not(.cloud-auth-gate) #cloudUser{grid-column:1/-1}
+        html:not(.cloud-auth-gate) #cloudRefresh,
+        html:not(.cloud-auth-gate) #cloudExport,
+        html:not(.cloud-auth-gate) #cloudSignOut,
+        html:not(.cloud-auth-gate) #auaVehicleMasterManagerBtn,
+        html:not(.cloud-auth-gate) #auaSystemHealthBtn{width:100%}
       }
       @media(max-width:520px){
-        html:not(.cloud-auth-gate) #cloudPanel{padding:7px 8px;margin-bottom:9px}
+        html:not(.cloud-auth-gate) #cloudPanel{padding:7px 8px;margin-bottom:8px}
+        html:not(.cloud-auth-gate) #cloudSignedIn:not([hidden]){grid-template-columns:1fr 1fr}
+        html:not(.cloud-auth-gate) #cloudUser{grid-column:1/-1}
         html:not(.cloud-auth-gate) #cloudUser::after{display:none}
         html:not(.cloud-auth-gate) #cloudRefresh,
         html:not(.cloud-auth-gate) #cloudExport,
-        html:not(.cloud-auth-gate) #cloudSignOut{padding:6px 7px;font-size:9px}
-        html:not(.cloud-auth-gate) .aua-workspace-header{margin:0 -11px 11px}
+        html:not(.cloud-auth-gate) #cloudSignOut,
+        html:not(.cloud-auth-gate) #auaVehicleMasterManagerBtn,
+        html:not(.cloud-auth-gate) #auaSystemHealthBtn{padding:6px 7px;font-size:9px}
+        html:not(.cloud-auth-gate) .aua-workspace-header{margin:0 -11px 10px}
       }
       @media print{#cloudPanel{display:none!important}}
     `;
@@ -128,7 +141,7 @@
     const raw=String(user.textContent||'').trim();
     user.dataset.auaDisplay=displayName(raw);
     refresh.textContent='Refresh';
-    exportButton.textContent='Export JSON';
+    exportButton.textContent='Export';
     signOut.textContent='Sign Out';
 
     const message=String(status.textContent||'').trim();
