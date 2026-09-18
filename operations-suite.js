@@ -6,9 +6,9 @@
   const clone=value=>{try{return JSON.parse(JSON.stringify(value))}catch{return value}};
   const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
   const normVehicle=value=>text(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const RECOVERY_KEY='auaRecoveryDraftV2';
+  const RECOVERY_KEY='auaRecoveryDraftV2',HEALTH_LAST_SAVE_KEY='auaHealthLastSaveV1',HEALTH_ERROR_KEY='auaHealthErrorsV1';
   const RECOVERY_MAX_AGE=7*24*60*60*1000;
-  let saveHealthInstalled=false,recoveryTimer=null,healthTimer=null;
+  let saveHealthInstalled=false,recoveryTimer=null,healthTimer=null,systemHealthPromise=null;
 
   function addStyles(){
     if($('auaOperationsStyles'))return;
@@ -22,6 +22,22 @@
   }
 
   // ---------- App health + controlled recovery ----------
+  function logError(kind,message){
+    try{
+      const current=JSON.parse(localStorage.getItem(HEALTH_ERROR_KEY)||'[]'),list=Array.isArray(current)?current:[];
+      list.unshift({at:Date.now(),kind:text(kind)||'runtime',message:text(message||'Unknown error').slice(0,300)});
+      localStorage.setItem(HEALTH_ERROR_KEY,JSON.stringify(list.slice(0,20)));
+      document.dispatchEvent(new CustomEvent('aua-health-updated'));
+    }catch{}
+  }
+  function recentErrors(){try{const value=JSON.parse(localStorage.getItem(HEALTH_ERROR_KEY)||'[]');return Array.isArray(value)?value:[]}catch{return[]}}
+  function lastSuccessfulSave(){try{return JSON.parse(localStorage.getItem(HEALTH_LAST_SAVE_KEY)||'null')}catch{return null}}
+  function markSuccessfulSave(){
+    const data=typeof window.state==='function'?window.state():{},info={at:Date.now(),quoteNumber:text(data?.quoteNumber),vehicle:text(data?.vehicle)};
+    try{localStorage.setItem(HEALTH_LAST_SAVE_KEY,JSON.stringify(info))}catch{}
+    document.dispatchEvent(new CustomEvent('aua-health-updated',{detail:{save:info}}));return info;
+  }
+
   function healthHost(){return $('cloudPanel')||document.querySelector('.editor')||document.body}
   function ensureHealthBar(){
     if($('auaHealthBar'))return $('auaHealthBar');const bar=document.createElement('div');bar.id='auaHealthBar';bar.className='aua-health-bar';
@@ -56,8 +72,8 @@
     document.addEventListener('change',event=>{if(event.target?.closest?.('#auaHistoryOverlay,#auaVehicleMasterOverlay,#auaPreflightOverlay'))return;queueRecovery()},true);
     window.addEventListener('offline',()=>showHealth('Offline — your unsaved quotation is protected on this PC. Cloud actions will resume when the connection returns.','warn'));
     window.addEventListener('online',()=>showHealth('Back online. Cloud functions are available again.','success',[],3500));
-    window.addEventListener('error',()=>{writeRecovery();showHealth('An app issue was detected. Your unsaved quotation has been protected locally.','error',[],6000)});
-    window.addEventListener('unhandledrejection',()=>{writeRecovery();showHealth('A background operation failed. Your unsaved quotation has been protected locally.','error',[],6000)});
+    window.addEventListener('error',event=>{writeRecovery();logError('javascript',event?.message||'JavaScript error');showHealth('An app issue was detected. Your unsaved quotation has been protected locally.','error',[],6000)});
+    window.addEventListener('unhandledrejection',event=>{writeRecovery();logError('promise',event?.reason?.message||event?.reason||'Background operation failed');showHealth('A background operation failed. Your unsaved quotation has been protected locally.','error',[],6000)});
     navigator.serviceWorker?.addEventListener?.('controllerchange',()=>showHealth('A newer app version was installed. Refresh once when convenient.','warn',[{id:'refresh',label:'Refresh',run:()=>location.reload()}]));
   }
   function installSaveHealthHook(){
@@ -66,10 +82,13 @@
       writeRecovery();
       try{
         const result=await current.apply(this,arguments);if(result===false){showHealth('Save was not completed. Your unsaved quotation remains protected locally.','warn',[],5000);return result}
-        await new Promise(resolve=>setTimeout(resolve,120));const cloud=$('cloudStatus');
-        if(cloud?.dataset?.tone==='error'){showHealth('Quotation is protected locally, but cloud sync needs attention: '+text(cloud.textContent),'warn');return result}
-        clearRecovery();showHealth('Quotation saved successfully.','success',[],2400);return result;
-      }catch(error){writeRecovery();showHealth('Save failed. Your unsaved quotation is protected locally. '+text(error?.message),'error');throw error}
+        await new Promise(resolve=>setTimeout(resolve,120));const cloud=$('cloudStatus'),cloudMessage=text(cloud?.textContent),masterWarning=/quotation saved, but vehicle master/i.test(cloudMessage);
+        if(cloud?.dataset?.tone==='error'&&!masterWarning){logError('cloud-save',cloudMessage||'Cloud save needs attention');showHealth('Quotation is protected locally, but cloud sync needs attention: '+cloudMessage,'warn');return result}
+        markSuccessfulSave();clearRecovery();
+        if(masterWarning){logError('vehicle-master',cloudMessage);showHealth('Quotation saved. Vehicle master sync can retry later.','warn',[],4000)}
+        else showHealth('Quotation saved successfully.','success',[],2400);
+        return result;
+      }catch(error){writeRecovery();logError('save',error?.message||error);showHealth('Save failed. Your unsaved quotation is protected locally. '+text(error?.message),'error');throw error}
     }
     wrappedSave.__auaHealthSave=true;wrappedSave.__auaHealthBase=current;window.saveRecord=wrappedSave;saveHealthInstalled=true;return true;
   }
@@ -108,12 +127,25 @@
       message.textContent='Vehicle master updated.';message.dataset.tone='success';renderMasterList(updated.vehicle);setTimeout(()=>selectMaster(updated.vehicle),0);
     }catch(error){message.textContent=error?.message||'Unable to update vehicle master.';message.dataset.tone='error'}finally{button.disabled=false;button.textContent='Save Changes'}
   }
+  function openSystemHealth(){
+    if(window.AUASystemHealth?.open){window.AUASystemHealth.open();return}
+    if(!systemHealthPromise){
+      systemHealthPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='./system-health.js';script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error('System Health could not load.'));document.head.appendChild(script)}).catch(error=>{systemHealthPromise=null;throw error});
+    }
+    systemHealthPromise.then(()=>window.AUASystemHealth?.open?.()).catch(error=>{logError('system-health',error?.message||error);showHealth(error?.message||'System Health could not load.','error',[],5000)});
+  }
+  function installSystemHealthButton(){
+    const signed=$('cloudSignedIn');if(!signed)return false;if($('auaSystemHealthBtn'))return true;
+    const button=document.createElement('button');button.id='auaSystemHealthBtn';button.type='button';button.className='aua-master-manager-button';button.textContent='System Health';const toolbar=signed.querySelector('.toolbar')||signed;toolbar.appendChild(button);button.onclick=openSystemHealth;return true;
+  }
+
   function installMasterButton(){
     const signed=$('cloudSignedIn');if(!signed)return false;let button=$('auaVehicleMasterManagerBtn');if(button)return true;button=document.createElement('button');button.id='auaVehicleMasterManagerBtn';button.type='button';button.className='aua-master-manager-button';button.textContent='Vehicle Masters';const toolbar=signed.querySelector('.toolbar')||signed;toolbar.appendChild(button);button.onclick=()=>{ensureMasterManager();renderMasterList();$('auaVehicleMasterOverlay').classList.add('show');setTimeout(()=>$('auaMasterSearch')?.focus(),0)};return true;
   }
 
-  function installCore(){addStyles();ensureHealthBar();installRecoveryListeners();installMasterButton()}
-  function installLate(attempt=0){const saveReady=installSaveHealthHook(),buttonReady=installMasterButton();if((!saveReady||!buttonReady)&&attempt<20)setTimeout(()=>installLate(attempt+1),180)}
+  function installCore(){addStyles();ensureHealthBar();installRecoveryListeners();installMasterButton();installSystemHealthButton()}
+  function installLate(attempt=0){const saveReady=installSaveHealthHook(),buttonReady=installMasterButton(),healthButtonReady=installSystemHealthButton();if((!saveReady||!buttonReady||!healthButtonReady)&&attempt<20)setTimeout(()=>installLate(attempt+1),180)}
+  window.AUAHealthRuntime={logError,recentErrors,lastSuccessfulSave,recovery:readRecovery,clearErrors:()=>{try{localStorage.removeItem(HEALTH_ERROR_KEY)}catch{};document.dispatchEvent(new CustomEvent('aua-health-updated'))}};
   function start(){installCore();setTimeout(()=>installLate(),700);setTimeout(checkRecovery,1200)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   window.addEventListener('load',()=>setTimeout(()=>installLate(),950),{once:true});
