@@ -5,7 +5,7 @@
   const TEMPLATE_MIGRATION_KEY='auaCloudTemplateMigrationV1';
   const MASTER_SEED_KEY='auaVehicleMasterSeedV2';
   const TEMPLATE_PREFIX='template|';
-  const VEHICLE_PREFIX='vehicle-master|';
+  const VEHICLE_PREFIX='vehicle-master|',CLOUD_SYNC_KEY='auaLastCloudSyncV1';
   const $=id=>document.getElementById(id);
   const clone=value=>{try{return JSON.parse(JSON.stringify(value))}catch{return value}};
   const text=value=>String(value??'').trim();
@@ -155,6 +155,9 @@
       const results=await Promise.allSettled([syncTemplates({silent:true}),fetchMasters()]);
       const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;
       lastSyncedUser=user.id;lastSyncAt=Date.now();queueMasterSeed();renderMaster();
+      const info={at:lastSyncAt,templates:templates.length,masters:masters.size};
+      try{localStorage.setItem(CLOUD_SYNC_KEY,JSON.stringify(info))}catch{}
+      document.dispatchEvent(new CustomEvent('aua-workshop-cloud-sync',{detail:info}));
       if(!silent)status(`Workshop data synced · ${templates.length} template${templates.length===1?'':'s'} · ${masters.size} vehicle master${masters.size===1?'':'s'}.`,'success');
       return{templates:templates.length,masters:masters.size};
     })().finally(()=>{syncPromise=null});return syncPromise;
@@ -163,11 +166,11 @@
     try{
       const client=await cloudClient();
       client.auth.onAuthStateChange((_event,s)=>{const next=s?.user||null,userChanged=next?.id!==user?.id;user=next;if(!user){templates=[];masters.clear();lastSyncedUser='';return}if(userChanged)setTimeout(()=>syncLight({silent:true}).catch(()=>{}),150)});
-      const {data}=await client.auth.getSession();user=data?.session?.user||null;if(user)syncLight({silent:true}).catch(error=>console.warn('Workshop data sync deferred.',error));
-    }catch(error){console.warn('Shared workshop data will retry after sign-in.',error)}
+      const {data}=await client.auth.getSession();user=data?.session?.user||null;if(user)syncLight({silent:true}).catch(error=>{window.AUAHealthRuntime?.logError?.('workshop-sync',error?.message||error);console.warn('Workshop data sync deferred.',error)});
+    }catch(error){window.AUAHealthRuntime?.logError?.('workshop-cloud',error?.message||error);console.warn('Shared workshop data will retry after sign-in.',error)}
   }
 
-  window.AUAWorkshopCloud={refresh:()=>syncLight({silent:false,force:true}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster,updateVehicleMaster};
+  window.AUAWorkshopCloud={refresh:()=>syncLight({silent:false,force:true}),templates:()=>clone(templates),masters:()=>clone(Array.from(masters.values())),vehicle:v=>clone(masters.get(normVehicle(v))||null),saveVehicleMaster:saveMaster,updateVehicleMaster,health:()=>({lastSyncAt,templates:templates.length,masters:masters.size,signedIn:!!user})};
 
   installRecentFilter();installTemplateBridge();installMasterBridge();scheduleFinalSaveHook();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{installRecentFilter();installMasterBridge();installCloud()},{once:true});else installCloud();
