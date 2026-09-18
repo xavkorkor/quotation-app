@@ -6,10 +6,9 @@
   const clone=value=>{try{return JSON.parse(JSON.stringify(value))}catch{return value}};
   const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
   const normVehicle=value=>text(value).toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const STATUS_OPTIONS=['Draft','Sent','Approved','Job In Progress','Completed','Cancelled'];
   const RECOVERY_KEY='auaRecoveryDraftV2';
   const RECOVERY_MAX_AGE=7*24*60*60*1000;
-  let currentStatus='Draft',statusHooksInstalled=false,saveHealthInstalled=false,recoveryTimer=null,healthTimer=null,managerClientPromise=null;
+  let saveHealthInstalled=false,recoveryTimer=null,healthTimer=null;
 
   function addStyles(){
     if($('auaOperationsStyles'))return;
@@ -20,32 +19,6 @@
       @media(max-width:760px){.aua-health-bar.show{align-items:flex-start;flex-direction:column}.aua-master-overlay{padding:0}.aua-master-shell{min-height:100vh;border-radius:0}.aua-master-main{grid-template-columns:1fr}.aua-master-list-pane{border-right:0;border-bottom:1px solid #e2e8f0}.aua-master-list{max-height:240px}.aua-master-form-grid{grid-template-columns:1fr}.aua-master-form-grid .wide{grid-column:auto}}
       @media print{.aua-health-bar,.aua-master-overlay,.aua-master-manager-button{display:none!important}}
     `;document.head.appendChild(style);
-  }
-
-  // ---------- Expanded quotation status workflow ----------
-  function normalizeStatus(value){return STATUS_OPTIONS.includes(text(value))?text(value):'Draft'}
-  function syncStatusUi(){
-    const select=$('auaQuoteStatus');if(select){
-      const existing=Array.from(select.options).map(o=>o.value);
-      if(existing.join('|')!==STATUS_OPTIONS.join('|'))select.innerHTML=STATUS_OPTIONS.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
-      select.value=currentStatus;
-    }
-    const header=$('auaUiStatus');if(header)header.textContent=currentStatus;
-  }
-  function bindStatusSelect(){
-    const select=$('auaQuoteStatus');if(!select||select.dataset.auaStatusV2Bound==='1')return false;
-    select.dataset.auaStatusV2Bound='1';select.addEventListener('change',()=>{currentStatus=normalizeStatus(select.value);setTimeout(syncStatusUi,0)});return true;
-  }
-  function installStatusHooks(){
-    if(statusHooksInstalled)return true;
-    if(typeof window.state!=='function'||typeof window.loadRecord!=='function')return false;
-    const baseState=window.state,baseLoad=window.loadRecord,baseNew=window.newQuote,baseDuplicate=window.duplicateQuote;
-    try{currentStatus=normalizeStatus(baseState()?.status||$('auaQuoteStatus')?.value)}catch{currentStatus=normalizeStatus($('auaQuoteStatus')?.value)}
-    window.state=function(){const data=baseState.apply(this,arguments);data.status=currentStatus;return data};window.state.__auaStatusWorkflowV2=true;
-    window.loadRecord=function(data){currentStatus=normalizeStatus(data?.status);const result=baseLoad.apply(this,arguments);setTimeout(()=>{bindStatusSelect();syncStatusUi()},0);return result};
-    if(typeof baseNew==='function')window.newQuote=function(){const result=baseNew.apply(this,arguments);currentStatus='Draft';setTimeout(syncStatusUi,0);return result};
-    if(typeof baseDuplicate==='function')window.duplicateQuote=function(){const result=baseDuplicate.apply(this,arguments);currentStatus='Draft';setTimeout(syncStatusUi,0);return result};
-    statusHooksInstalled=true;bindStatusSelect();syncStatusUi();return true;
   }
 
   // ---------- App health + controlled recovery ----------
@@ -102,13 +75,6 @@
   }
 
   // ---------- Vehicle Master Manager ----------
-  async function managerClient(){
-    if(managerClientPromise)return managerClientPromise;managerClientPromise=(async()=>{
-      if(!window.supabase?.createClient)throw new Error('Online storage is unavailable.');
-      const response=await fetch('./online-storage.js',{cache:'force-cache'});if(!response.ok)throw new Error('Online storage configuration could not be read.');
-      const source=await response.text(),url=source.match(/\burl\s*:\s*'([^']+)'/)?.[1],key=source.match(/\bkey\s*:\s*'([^']+)'/)?.[1];if(!url||!key)throw new Error('Online storage configuration is unavailable.');return window.supabase.createClient(url,key);
-    })();return managerClientPromise;
-  }
   function masterList(){try{return window.AUAWorkshopCloud?.masters?.()||[]}catch{return[]}}
   function ensureMasterManager(){
     if($('auaVehicleMasterOverlay'))return;
@@ -132,19 +98,22 @@
   async function saveMasterEdits(master){
     const button=$('auaMasterSave'),message=$('auaMasterMessage');if(!button||!message)return;button.disabled=true;button.textContent='Saving…';message.textContent='Saving vehicle master…';message.dataset.tone='';
     try{
-      const client=await managerClient(),{data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError)throw sessionError;const sessionUser=sessionData?.session?.user;if(!sessionUser)throw new Error('Sign in to edit vehicle masters.');
-      const now=new Date().toISOString(),updated={...clone(master),customer:text($('auaMasterCustomer')?.value),phone:text($('auaMasterPhone')?.value),model:text($('auaMasterModel')?.value),mileage:text($('auaMasterMileage')?.value),updatedAt:now,updatedBy:sessionUser.email||'staff'};
-      const recordKey=`vehicle-master|${normVehicle(updated.vehicle).toLowerCase()}`,payload={recordType:'vehicle-master',vehicle:updated.vehicle,customer:updated.customer,phone:updated.phone,model:updated.model,mileage:updated.mileage,lastQuoteNumber:updated.lastQuoteNumber,lastQuotationDate:updated.lastQuotationDate,quotationCount:Number(updated.quotationCount||0),updatedAt:now,updatedBy:updated.updatedBy};
-      const row={user_id:master.user_id||sessionUser.id,record_key:recordKey,customer:updated.customer,vehicle:updated.vehicle,quote_date:updated.lastQuotationDate||null,model:updated.model,total:0,data:payload,updated_at:now};const {error}=await client.from('quotations').upsert(row,{onConflict:'record_key'});if(error)throw error;
-      await window.AUAWorkshopCloud?.refresh?.();message.textContent='Vehicle master updated.';message.dataset.tone='success';renderMasterList(updated.vehicle);setTimeout(()=>selectMaster(updated.vehicle),120);
+      const api=window.AUAWorkshopCloud;if(typeof api?.updateVehicleMaster!=='function')throw new Error('Vehicle master sync is not ready yet.');
+      const updated=await api.updateVehicleMaster(master.vehicle,{
+        customer:text($('auaMasterCustomer')?.value),
+        phone:text($('auaMasterPhone')?.value),
+        model:text($('auaMasterModel')?.value),
+        mileage:text($('auaMasterMileage')?.value)
+      });
+      message.textContent='Vehicle master updated.';message.dataset.tone='success';renderMasterList(updated.vehicle);setTimeout(()=>selectMaster(updated.vehicle),0);
     }catch(error){message.textContent=error?.message||'Unable to update vehicle master.';message.dataset.tone='error'}finally{button.disabled=false;button.textContent='Save Changes'}
   }
   function installMasterButton(){
     const signed=$('cloudSignedIn');if(!signed)return false;let button=$('auaVehicleMasterManagerBtn');if(button)return true;button=document.createElement('button');button.id='auaVehicleMasterManagerBtn';button.type='button';button.className='aua-master-manager-button';button.textContent='Vehicle Masters';const toolbar=signed.querySelector('.toolbar')||signed;toolbar.appendChild(button);button.onclick=()=>{ensureMasterManager();renderMasterList();$('auaVehicleMasterOverlay').classList.add('show');setTimeout(()=>$('auaMasterSearch')?.focus(),0)};return true;
   }
 
-  function installCore(){addStyles();ensureHealthBar();installRecoveryListeners();installMasterButton();bindStatusSelect();syncStatusUi()}
-  function installLate(attempt=0){const a=installStatusHooks(),b=installSaveHealthHook(),c=installMasterButton();if((!a||!b||!c)&&attempt<30)setTimeout(()=>installLate(attempt+1),160)}
+  function installCore(){addStyles();ensureHealthBar();installRecoveryListeners();installMasterButton()}
+  function installLate(attempt=0){const saveReady=installSaveHealthHook(),buttonReady=installMasterButton();if((!saveReady||!buttonReady)&&attempt<20)setTimeout(()=>installLate(attempt+1),180)}
   function start(){installCore();setTimeout(()=>installLate(),700);setTimeout(checkRecovery,1200)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   window.addEventListener('load',()=>setTimeout(()=>installLate(),950),{once:true});
