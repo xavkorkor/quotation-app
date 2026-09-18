@@ -50,3 +50,30 @@ html.cloud-auth-gate body{min-height:100vh;background:radial-gradient(circle at 
 @media(max-width:520px){.editor{padding:11px}.aua-workspace-header{margin:0 -11px 11px;padding:12px 11px}.aua-workspace-main{gap:9px}.aua-workspace-title{font-size:15px}.aua-workspace-ref{max-width:180px}.aua-workspace-actions{gap:6px}.aua-workspace-actions .btn{font-size:10px}.customer-panel .grid{grid-template-columns:1fr}.aua-quote-workflow-panel .grid{grid-template-columns:1fr!important}.sections-panel .aua-sections-topbar{align-items:stretch}#auaAddSectionTop{min-height:32px;padding:6px 9px;font-size:10px}}
 @media(max-width:700px){.paper .meta.aua-pdf-meta .aua-pdf-details{grid-template-columns:1fr!important}}
 @media print{.aua-workspace-header{display:none!important}.preview-wrap{background:#fff}.paper{border-radius:0;box-shadow:none}.paper .meta.aua-pdf-meta .aua-pdf-details{grid-template-columns:1fr 1fr!important}}
+
+
+/* Compact workspace tidy-up: 2026-09-18 */
+html:not(.cloud-auth-gate) .editor{padding:15px 16px 18px}
+html:not(.cloud-auth-gate) #cloudPanel{margin-bottom:8px!important;padding:8px 9px!important}
+html:not(.cloud-auth-gate) .aua-workspace-header{margin:0 -16px 11px!important;padding:11px 16px 12px!important}
+html:not(.cloud-auth-gate) .aua-workspace-kicker{margin-bottom:2px}
+html:not(.cloud-auth-gate) .aua-workspace-title{font-size:17px}
+html:not(.cloud-auth-gate) .aua-workspace-meta{margin-top:6px}
+html:not(.cloud-auth-gate) .aua-workspace-actions{gap:6px;margin-top:10px}
+html:not(.cloud-auth-gate) .aua-workspace-actions .btn{min-height:36px;padding:7px 9px;font-size:10px}
+html:not(.cloud-auth-gate) .panel{padding:14px;margin-bottom:10px}
+html:not(.cloud-auth-gate) .panel-title{margin-bottom:9px}
+html:not(.cloud-auth-gate) .customer-panel .grid{gap:9px 10px}
+html:not(.cloud-auth-gate) input,
+html:not(.cloud-auth-gate) select,
+html:not(.cloud-auth-gate) textarea{min-height:39px;padding:9px 10px}
+html:not(.cloud-auth-gate) label{margin-bottom:5px;font-size:10.5px}
+html:not(.cloud-auth-gate) .aua-quote-workflow-panel .grid{gap:10px}
+html:not(.cloud-auth-gate) .checkrow{gap:15px;align-items:center}
+html:not(.cloud-auth-gate) .checkrow label{font-size:10.5px}
+html:not(.cloud-auth-gate) .checkrow input{min-height:0}
+@media(max-width:620px){
+  html:not(.cloud-auth-gate) .editor{padding:12px}
+  html:not(.cloud-auth-gate) .aua-workspace-header{margin:0 -12px 10px!important;padding:10px 12px 11px!important}
+  html:not(.cloud-auth-gate) .customer-panel .grid{gap:9px}
+}
