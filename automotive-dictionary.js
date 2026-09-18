@@ -16,10 +16,6 @@
     return sources.reduce((promise,src)=>promise.then(()=>loadScript(src)),Promise.resolve());
   }
 
-  function captureLocalPdfGenerator(){
-    if(typeof window.makePdfBlob==='function'&&!window.__auaBaseMakePdfBlob)window.__auaBaseMakePdfBlob=window.makePdfBlob;
-  }
-
   function blockLegacyAutoMigration(){
     if(typeof window.getRecent!=='function'||window.getRecent.__auaNoAutoMigration)return;
     const baseGetRecent=window.getRecent;
@@ -33,7 +29,6 @@
 
   function blockBackgroundPersistence(){
     if(typeof window.saveRecent==='function')window.saveRecent=function(){return false};
-    if(typeof window.__auaBaseMakePdfBlob==='function')window.makePdfBlob=window.__auaBaseMakePdfBlob;
   }
 
   function cleanupLegacyState(){
@@ -99,7 +94,6 @@
   }
 
   function startupGuards(){
-    captureLocalPdfGenerator();
     blockLegacyAutoMigration();
     cleanupLegacyState();
     disableCustomerVehicleHistory();
@@ -111,54 +105,9 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startupGuards,{once:true});
   else startupGuards();
 
-  const corePromise=loadOrdered(['./app-core.js','./history-stability-guard.js','./workflow-suite.js','./preflight-reminder-only.js','./cloud-workshop-data.js','./operations-suite.js']).catch(error=>{
+  const corePromise=loadOrdered(['./app-core.js','./workflow-suite.js','./cloud-workshop-data.js','./operations-suite.js']).catch(error=>{
     console.error('Quotation runtime failed to initialise',error);
     throw error;
-  });
-
-  // Templates are intentionally user-owned only. Clear the template library once for this
-  // migration, then preserve everything the user saves from this point onward.
-  const TEMPLATE_RESET_KEY='auaUserOwnedTemplatesResetV1';
-  function resetExistingTemplatesOnce(){
-    try{
-      if(localStorage.getItem(TEMPLATE_RESET_KEY)==='1')return;
-      localStorage.removeItem('auaJobTemplatesV1');
-      localStorage.setItem(TEMPLATE_RESET_KEY,'1');
-    }catch{}
-  }
-  function enforceUserOwnedTemplateUi(attempt=0){
-    const panel=document.getElementById('auaTemplatePanel');
-    if(!panel){if(attempt<30)setTimeout(()=>enforceUserOwnedTemplateUi(attempt+1),100);return}
-    if(panel.dataset.auaUserOwnedTemplates==='1')return;
-    panel.dataset.auaUserOwnedTemplates='1';
-
-    const clean=()=>{
-      panel.querySelectorAll('.aua-template-card').forEach(card=>{
-        const button=card.querySelector('[data-aua-template]');
-        const id=String(button?.dataset?.auaTemplate||'');
-        if(id&&!id.startsWith('custom-'))card.remove();
-      });
-      const grid=panel.querySelector('.aua-template-grid');
-      if(!grid)return;
-      const cards=grid.querySelectorAll('.aua-template-card');
-      const empty=grid.querySelector('.aua-template-empty');
-      if(cards.length){empty?.remove();return}
-      if(!empty){
-        const message=document.createElement('div');
-        message.className='aua-template-empty';
-        message.style.cssText='grid-column:1/-1;padding:14px;border:1px dashed #cbd5e1;border-radius:9px;background:#f8fafc;color:#64748b;font-size:10.5px;line-height:1.45;text-align:center';
-        message.textContent='No templates yet. Build a quotation section, then choose “Save Current Section as Template”.';
-        grid.appendChild(message);
-      }
-    };
-
-    clean();
-    new MutationObserver(clean).observe(panel,{childList:true,subtree:true});
-  }
-
-  corePromise.then(()=>{
-    resetExistingTemplatesOnce();
-    enforceUserOwnedTemplateUi();
   });
 
   const historyModules=[
@@ -178,13 +127,7 @@
     return historyPromise;
   }
 
-  // Build the hidden History UI only when the browser is idle. No quotation cloud fetch runs here.
-  corePromise.then(()=>{
-    const warm=()=>loadHistoryRuntime().catch(error=>console.warn('History warm-up deferred.',error));
-    if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:2500});
-    else setTimeout(warm,1200);
-  }).catch(()=>{});
-
+  // History code executes only when requested; its assets are pre-cached by the service worker.
   window.auaOpenHistory=async function(){
     try{
       await corePromise;
