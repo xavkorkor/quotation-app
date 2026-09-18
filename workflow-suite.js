@@ -13,7 +13,7 @@
   let revisions=[];
   let revisionHooksInstalled=false;
   let baseState=null,baseLoadRecord=null,baseNewQuote=null,baseDuplicateQuote=null;
-  let pdfInspectionInstalled=false,lastPdfInspection=null;
+  let lastPdfInspection=null,vehicleGroupsCache=null,vehicleGroupsCacheAt=0,revisionUiTimer=null;
 
   function records(){try{return typeof getRecent==='function'?(getRecent()||[]):[]}catch{return[]}}
   function staffName(){
@@ -46,16 +46,24 @@
   }
 
   // Smart vehicle/customer history lookup.
-  function groupedVehicleMatches(query){
-    const key=normVehicle(query);if(!key)return[];
+  function allVehicleGroups(){
+    const now=Date.now();
+    if(vehicleGroupsCache&&now-vehicleGroupsCacheAt<5000)return vehicleGroupsCache;
     const groups=new Map();
     records().slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).forEach(record=>{
       const vehicle=text(record?.data?.vehicle),vkey=normVehicle(vehicle);
-      if(!vkey||!vkey.includes(key))return;
+      if(!vkey)return;
       if(!groups.has(vkey))groups.set(vkey,{vehicle,records:[]});
       groups.get(vkey).records.push(record);
     });
-    return Array.from(groups.values()).sort((a,b)=>Number(b.records[0]?.ts||0)-Number(a.records[0]?.ts||0));
+    vehicleGroupsCache=Array.from(groups.values()).sort((a,b)=>Number(b.records[0]?.ts||0)-Number(a.records[0]?.ts||0));
+    vehicleGroupsCacheAt=now;
+    return vehicleGroupsCache;
+  }
+  function invalidateVehicleGroups(){vehicleGroupsCache=null;vehicleGroupsCacheAt=0}
+  function groupedVehicleMatches(query){
+    const key=normVehicle(query);if(!key)return[];
+    return allVehicleGroups().filter(group=>normVehicle(group.vehicle).includes(key));
   }
   function renderSmartVehicle(){
     const input=$('vehicle'),box=$('auaSmartVehicleLookup');if(!input||!box)return;
@@ -98,23 +106,21 @@
   function installSmartVehicle(){
     const input=$('vehicle');if(!input||$('auaSmartVehicleLookup'))return;
     const box=document.createElement('div');box.id='auaSmartVehicleLookup';box.className='aua-smart-vehicle';(input.parentElement||input).appendChild(box);
-    input.addEventListener('input',()=>setTimeout(renderSmartVehicle,0));input.addEventListener('focus',()=>setTimeout(renderSmartVehicle,0));
+    let timer=null;const queue=()=>{clearTimeout(timer);timer=setTimeout(renderSmartVehicle,45)};
+    input.addEventListener('input',queue);input.addEventListener('focus',queue);
     document.addEventListener('click',event=>{if(!box.contains(event.target)&&event.target!==input)box.classList.remove('show')});
-    document.addEventListener('aua-history-updated',()=>{if(document.activeElement===input)renderSmartVehicle()});
+    document.addEventListener('aua-history-updated',()=>{invalidateVehicleGroups();if(document.activeElement===input)queue()});
+    document.addEventListener('aua-vehicle-master-updated',invalidateVehicleGroups);
   }
 
   // Favourite/reusable workshop job templates.
-  const BUILTIN_TEMPLATES=[
-    {id:'service',name:'Normal Servicing',section:{title:'NORMAL SERVICING',items:[{q:'',d:'ENGINE OIL',p:''},{q:'',d:'OIL FILTER',p:''},{q:'',d:'LABOUR',p:''}]}},
-    {id:'brakes',name:'Brake Pad Replacement',section:{title:'BRAKE REPAIR',items:[{q:'',d:'BRAKE PADS',p:''},{q:'',d:'LABOUR',p:''}]}},
-    {id:'aircon-coil',name:'Aircon Cooling Coil',section:{title:'AIRCON REPAIR',items:[{q:'',d:'COOLING COIL',p:''},{q:'',d:'EXPANSION VALVE',p:''},{q:'',d:'AIRCON GAS',p:''},{q:'',d:'LABOUR',p:''}]}}
-  ];
   function customTemplates(){try{const value=JSON.parse(localStorage.getItem(TEMPLATE_KEY)||'[]');return Array.isArray(value)?value:[]}catch{return[]}}
   function saveCustomTemplates(list){localStorage.setItem(TEMPLATE_KEY,JSON.stringify(list.slice(0,30)))}
   function templateItemCount(t){return Array.isArray(t?.section?.items)?t.section.items.filter(x=>text(x?.d)||text(x?.p)).length:0}
   function templatePanelHtml(){
-    const all=[...BUILTIN_TEMPLATES,...customTemplates()];
-    return `<div class="aua-template-head"><b>FAVOURITE JOB TEMPLATES</b><button id="auaTemplateClose" class="btn outline" type="button">Close</button></div><div class="aua-template-grid">${all.map(t=>`<div class="aua-template-card"><button class="aua-template-use" type="button" data-aua-template="${esc(t.id)}"><b>${esc(t.name)}</b><span>${templateItemCount(t)} item${templateItemCount(t)===1?'':'s'}${String(t.id).startsWith('custom-')?' · Saved template':' · Built-in'}</span></button>${String(t.id).startsWith('custom-')?`<button class="aua-template-delete" type="button" title="Delete template" data-aua-template-delete="${esc(t.id)}">×</button>`:''}</div>`).join('')}</div><div class="aua-template-foot"><button id="auaSaveSectionTemplate" class="btn outline" type="button">★ Save Current Section as Template</button></div>`;
+    const all=customTemplates();
+    const cards=all.length?all.map(t=>`<div class="aua-template-card"><button class="aua-template-use" type="button" data-aua-template="${esc(t.id)}"><b>${esc(t.name)}</b><span>${templateItemCount(t)} item${templateItemCount(t)===1?'':'s'} · Saved template</span></button><button class="aua-template-delete" type="button" title="Delete template" data-aua-template-delete="${esc(t.id)}">×</button></div>`).join(''):'<div class="aua-template-empty" style="grid-column:1/-1;padding:14px;border:1px dashed #cbd5e1;border-radius:9px;background:#f8fafc;color:#64748b;font-size:10.5px;line-height:1.45;text-align:center">No templates yet. Build a quotation section, then choose “Save Current Section as Template”.</div>';
+    return `<div class="aua-template-head"><b>FAVOURITE JOB TEMPLATES</b><button id="auaTemplateClose" class="btn outline" type="button">Close</button></div><div class="aua-template-grid">${cards}</div><div class="aua-template-foot"><button id="auaSaveSectionTemplate" class="btn outline" type="button">★ Save Current Section as Template</button></div>`;
   }
   function renderTemplatePanel(){
     const panel=$('auaTemplatePanel');if(!panel)return;panel.innerHTML=templatePanelHtml();
@@ -123,6 +129,7 @@
     panel.querySelectorAll('[data-aua-template-delete]').forEach(button=>button.onclick=()=>deleteTemplate(button.dataset.auaTemplateDelete));
     $('auaSaveSectionTemplate').onclick=saveCurrentSectionTemplate;
   }
+  window.AUARenderTemplatePanel=renderTemplatePanel;
   function selectedSectionIndex(){
     try{if(typeof activeItem!=='undefined'&&activeItem&&Number.isInteger(activeItem.i)&&S[activeItem.i])return activeItem.i}catch{}
     if(typeof S!=='undefined'&&S.length===1)return 0;if(typeof S==='undefined'||!S.length)return 0;
@@ -138,7 +145,7 @@
   function deleteTemplate(id){saveCustomTemplates(customTemplates().filter(t=>t.id!==id));renderTemplatePanel()}
   function isBlankSection(s){return!!s&&!(s.items||[]).some(x=>text(x.d)||text(x.p))}
   function insertTemplate(id){
-    if(typeof S==='undefined'||typeof section!=='function')return;const template=[...BUILTIN_TEMPLATES,...customTemplates()].find(t=>t.id===id);if(!template)return;
+    if(typeof S==='undefined'||typeof section!=='function')return;const template=customTemplates().find(t=>t.id===id);if(!template)return;
     const next=section(clone(template.section));if(S.length===1&&isBlankSection(S[0]))S.splice(0,1,next);else S.push(next);
     if(typeof render==='function')render();if(typeof upd==='function')upd();$('auaTemplatePanel')?.classList.remove('show');
   }
@@ -197,7 +204,11 @@
     if(typeof baseDuplicateQuote==='function')window.duplicateQuote=function(){const result=baseDuplicateQuote.apply(this,arguments);setTimeout(()=>{revisions=[];updateRevisionUi()},80);return result};
     const baseSave=window.saveRecord;
     window.saveRecord=async function(){const before=clone(revisions);stageRevision();try{const result=await baseSave.apply(this,arguments);if(result===false){revisions=before;updateRevisionUi()}return result}catch(error){revisions=before;updateRevisionUi();throw error}};
-    document.addEventListener('input',()=>requestAnimationFrame(updateRevisionUi),true);document.addEventListener('change',()=>requestAnimationFrame(updateRevisionUi),true);updateRevisionUi();return true;
+    const queueRevisionUi=event=>{
+      if(event?.target?.closest?.('#auaHistoryOverlay,#auaVehicleMasterOverlay,#auaPreflightOverlay'))return;
+      clearTimeout(revisionUiTimer);revisionUiTimer=setTimeout(updateRevisionUi,120);
+    };
+    document.addEventListener('input',queueRevisionUi,true);document.addEventListener('change',queueRevisionUi,true);updateRevisionUi();return true;
   }
   function revisionDate(value){const d=new Date(value||0);return Number.isNaN(d.getTime())?'':d.toLocaleString('en-SG',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
   function decorateHistoryRevisions(){
@@ -208,11 +219,15 @@
     const items=preview.querySelector('.aua-history-items'),stats=preview.querySelector('.aua-history-stats');if(items)preview.insertBefore(card,items);else if(stats)stats.insertAdjacentElement('afterend',card);else preview.appendChild(card);
   }
   function installHistoryRevisionObserver(){
-    const attach=()=>{const preview=$('auaHistoryPreview');if(!preview||preview.dataset.auaRevisionObserved)return false;preview.dataset.auaRevisionObserved='1';new MutationObserver(()=>queueMicrotask(decorateHistoryRevisions)).observe(preview,{childList:true,subtree:true});decorateHistoryRevisions();return true};
-    if(attach())return;const observer=new MutationObserver(()=>{if(attach())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true});document.addEventListener('aua-history-updated',()=>setTimeout(decorateHistoryRevisions,0));
+    if(document.documentElement.dataset.auaRevisionHistoryEvents==='1')return;
+    document.documentElement.dataset.auaRevisionHistoryEvents='1';
+    let frame=0;
+    document.addEventListener('aua-history-updated',()=>{
+      cancelAnimationFrame(frame);frame=requestAnimationFrame(decorateHistoryRevisions);
+    });
   }
 
-  // Ready-to-send preflight. Blank/zero quantity is intentionally valid for labour.
+  // Ready-to-send reminder. Advisory only: it never blocks PDF or WhatsApp.
   function collectQuoteIssues(){
     const errors=[],warnings=[],seen=new Map();let used=0;
     try{(S||[]).forEach((sectionData,si)=>(sectionData.items||[]).forEach((itemData,ii)=>{
@@ -237,35 +252,42 @@
     const layout=layoutInspection(),blankTrailing=actualPages>1&&layout.contentBottomMm<=296.5?actualPages-1:Math.max(0,actualPages-layout.estimatedPages-1);
     return{actualPages:actualPages||layout.estimatedPages,blankTrailing,estimatedPages:layout.estimatedPages,contentBottomMm:layout.contentBottomMm,horizontalOverflow:layout.horizontalOverflow};
   }
-  function installPdfInspection(){
-    if(pdfInspectionInstalled)return true;if(typeof window.makePdfBlob!=='function')return false;pdfInspectionInstalled=true;const base=window.makePdfBlob;
-    window.makePdfBlob=async function(){const blob=await base.apply(this,arguments),meta=await inspectPdfBlob(blob);lastPdfInspection=meta;if(meta.blankTrailing>0)throw new Error(`PDF layout check detected ${meta.blankTrailing} trailing blank page${meta.blankTrailing===1?'':'s'}. PDF creation was stopped.`);if(meta.horizontalOverflow)throw new Error('PDF layout check detected content extending outside the quotation page width.');return blob};
-    window.makePdfBlob.__auaWorkflowPdfInspection=true;return true;
-  }
   function ensurePreflightModal(){
-    if($('auaPreflightOverlay'))return;const overlay=document.createElement('div');overlay.id='auaPreflightOverlay';overlay.className='aua-preflight-overlay';overlay.innerHTML='<div class="aua-preflight-card"><div class="aua-preflight-head"><h3>Ready to Send</h3><p>Quotation, calculation and PDF checks</p></div><div id="auaPreflightBody" class="aua-preflight-body"></div><div class="aua-preflight-foot"><button id="auaPreflightClose" class="btn primary" type="button">Close</button></div></div>';document.body.appendChild(overlay);$('auaPreflightClose').onclick=()=>overlay.classList.remove('show');overlay.onclick=e=>{if(e.target===overlay)overlay.classList.remove('show')};
+    if($('auaPreflightOverlay'))return;const overlay=document.createElement('div');overlay.id='auaPreflightOverlay';overlay.className='aua-preflight-overlay';overlay.innerHTML='<div class="aua-preflight-card"><div class="aua-preflight-head"><h3>Ready to Send Reminder</h3><p>Reminder only — PDF and WhatsApp are never blocked.</p></div><div id="auaPreflightBody" class="aua-preflight-body"></div><div class="aua-preflight-foot"><button id="auaPreflightClose" class="btn primary" type="button">Close</button></div></div>';document.body.appendChild(overlay);$('auaPreflightClose').onclick=()=>overlay.classList.remove('show');overlay.onclick=e=>{if(e.target===overlay)overlay.classList.remove('show')};
+  }
+  function syncValidationBox(result){
+    const box=$('validationBox');if(!box)return;const reminders=[...(result.errors||[]),...(result.warnings||[])];box.style.display=reminders.length?'block':'none';box.innerHTML=reminders.length?`<b>Reminder:</b><br>${reminders.map(x=>'• '+esc(x)).join('<br>')}`:'';
   }
   function showPreflight(result){
-    ensurePreflightModal();const overlay=$('auaPreflightOverlay'),body=$('auaPreflightBody'),errors=result.errors||[],warnings=result.warnings||[],pdf=result.pdf;
-    const tone=errors.length?'bad':warnings.length?'warn':'good',headline=errors.length?'Not ready to send':warnings.length?'Ready with warnings':'Ready to send';
-    body.innerHTML=`<div class="aua-preflight-status ${tone}">${headline}${pdf?` · PDF ${pdf.actualPages} page${pdf.actualPages===1?'':'s'}`:''}</div>${errors.length?`<div class="aua-preflight-group"><b>Fix before sending</b><ul>${errors.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}${warnings.length?`<div class="aua-preflight-group"><b>Warnings</b><ul>${warnings.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}${pdf&&pdf.blankTrailing?`<div class="aua-preflight-group"><b>PDF layout</b><ul><li>${pdf.blankTrailing} trailing blank page detected.</li></ul></div>`:''}`;overlay.classList.add('show');
+    ensurePreflightModal();const overlay=$('auaPreflightOverlay'),body=$('auaPreflightBody'),reminders=[...(result.errors||[]),...(result.warnings||[])],pdf=result.pdf;
+    if(pdf?.blankTrailing)reminders.push(`${pdf.blankTrailing} trailing blank PDF page detected.`);
+    if(pdf?.horizontalOverflow)reminders.push('PDF content extends beyond the page width.');
+    const unique=[...new Set(reminders)];
+    body.innerHTML=unique.length
+      ?`<div class="aua-preflight-status warn">Please review ${unique.length} reminder${unique.length===1?'':'s'} before sending.${pdf?` · PDF ${pdf.actualPages} page${pdf.actualPages===1?'':'s'}`:''}</div><div class="aua-preflight-group"><b>Reminders</b><ul>${unique.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`
+      :`<div class="aua-preflight-status good">No reminders found.${pdf?` PDF ${pdf.actualPages} page${pdf.actualPages===1?'':'s'} checked.`:''} You can continue with PDF or WhatsApp.</div>`;
+    overlay.classList.add('show');
   }
-  function syncValidationBox(result){const box=$('validationBox');if(!box)return;const issues=[...(result.errors||[]),...(result.warnings||[])];box.style.display=issues.length?'block':'none';box.innerHTML=issues.length?`<b>Please check:</b><br>${issues.map(x=>'• '+esc(x)).join('<br>')}`:''}
-  function installValidationOverride(){window.confirmValidation=function(){const result=collectQuoteIssues();syncValidationBox(result);if(result.errors.length){showPreflight(result);return false}if(result.warnings.length)return confirm(`Ready-to-send check found ${result.warnings.length} warning${result.warnings.length===1?'':'s'}:\n\n${result.warnings.join('\n')}\n\nContinue anyway?`);return true}}
+  function installValidationOverride(){
+    window.confirmValidation=function(){const result=collectQuoteIssues();syncValidationBox(result);return true};
+  }
   async function runFullPreflight(){
-    const result=collectQuoteIssues();syncValidationBox(result);if(result.errors.length){showPreflight(result);return false}
-    try{const blob=await window.makePdfBlob(),pdf=lastPdfInspection||await inspectPdfBlob(blob);result.pdf=pdf;if(pdf.blankTrailing>0)result.errors.push(`${pdf.blankTrailing} trailing blank PDF page detected.`);if(pdf.horizontalOverflow)result.errors.push('PDF content extends beyond the page width.')}catch(error){result.errors.push(error?.message||'Unable to generate PDF for checking.')}
-    showPreflight(result);return result.errors.length===0;
+    const result=collectQuoteIssues();syncValidationBox(result);
+    try{if(typeof window.makePdfBlob==='function'){const blob=await window.makePdfBlob();lastPdfInspection=await inspectPdfBlob(blob);result.pdf=lastPdfInspection}}catch(error){result.warnings.push(error?.message||'Unable to generate PDF for checking.')}
+    showPreflight(result);return true;
   }
   function installReadyButton(){
-    const body=$('auaActionsBody');if(!body||$('auaReadyCheckButton'))return;const button=document.createElement('button');button.id='auaReadyCheckButton';button.className='btn aua-ready-button';button.type='button';button.textContent='✓ Ready to Send Check';
+    const body=$('auaActionsBody');if(!body||$('auaReadyCheckButton'))return;const button=document.createElement('button');button.id='auaReadyCheckButton';button.className='btn aua-ready-button';button.type='button';button.textContent='✓ Ready to Send Reminder';
     button.onclick=async()=>{button.disabled=true;const old=button.textContent;button.textContent='Checking…';try{await runFullPreflight()}finally{button.disabled=false;button.textContent=old}};body.appendChild(button);
   }
-  window.AUAReadyToSend={check:runFullPreflight,collect:collectQuoteIssues,get lastPdf(){return lastPdfInspection}};
+  window.AUAReadyToSend={check:runFullPreflight,collect:collectQuoteIssues,advisoryOnly:true,get lastPdf(){return lastPdfInspection}};
 
-  function installCoreUi(){addStyles();installSmartVehicle();installTemplates();installReadyButton();ensurePreflightModal();installValidationOverride();installHistoryRevisionObserver()}
-  function installLateFeatures(attempt=0){const revisionsReady=installRevisionHooks(),pdfReady=installPdfInspection();updateRevisionUi();if((!revisionsReady||!pdfReady)&&attempt<30)setTimeout(()=>installLateFeatures(attempt+1),150)}
-  function install(){installCoreUi();setTimeout(()=>installLateFeatures(),80)}
+  function installCoreUi(){addStyles();installSmartVehicle();installTemplates();installReadyButton();installValidationOverride();installHistoryRevisionObserver()}
+  function installLateFeatures(attempt=0){const ready=installRevisionHooks();updateRevisionUi();if(!ready&&attempt<12)setTimeout(()=>installLateFeatures(attempt+1),150)}
+  function install(){
+    installCoreUi();
+    const late=()=>setTimeout(()=>installLateFeatures(),180);
+    if(document.readyState==='complete')late();else window.addEventListener('load',late,{once:true});
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  window.addEventListener('load',()=>setTimeout(()=>installLateFeatures(),120),{once:true});
 })();
