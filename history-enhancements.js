@@ -6,8 +6,8 @@
   const clone=value=>{try{return JSON.parse(JSON.stringify(value))}catch{return value}};
   const money=value=>Number(value||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2});
   const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-  const RECENTKEY='auaRecentQuotesV1',TEMPLATE_PREFIX='template|',VEHICLE_PREFIX='vehicle-master|',PAGE_SIZE=200;
-  let selectedKey='',records=[],clientPromise=null,loading=false,visibleLimit=PAGE_SIZE,vehicleCounts=new Map(),searchTimer=null;
+  const RECENTKEY='auaRecentQuotesV1',TEMPLATE_PREFIX='template|',VEHICLE_PREFIX='vehicle-master|',PAGE_SIZE=200,CLOUD_PAGE_SIZE=200,CACHE_MAX=1000,HISTORY_SYNC_KEY='auaLastHistorySyncV1';
+  let selectedKey='',records=[],clientPromise=null,loading=false,visibleLimit=PAGE_SIZE,vehicleCounts=new Map(),searchTimer=null,cloudOffset=0,cloudHasMore=true,cloudPageLoading=false,lastCloudSyncAt=0;
 
   function reserved(record){const key=String(record?.record_key||record?.key||''),type=String(record?.data?.recordType||'');return key.startsWith(TEMPLATE_PREFIX)||key.startsWith(VEHICLE_PREFIX)||type==='job-template'||type==='vehicle-master'}
   function itemText(record){const out=[];(record?.data?.sections||[]).forEach(s=>{out.push(s?.title||'');(s?.items||[]).forEach(x=>out.push(x?.d||x?.desc||''))});return norm(out.join(' '))}
@@ -28,17 +28,46 @@
     });return next;
   }
   function itemSearch(record){if(record.__auaItemSearch===undefined)record.__auaItemSearch=itemText(record);return record.__auaItemSearch}
-  function localRecords(){try{return prepare(typeof getRecent==='function'?(getRecent()||[]):[])}catch{return[]}}
+  function rawLocalRecords(){try{return typeof getRecent==='function'?(getRecent()||[]):[]}catch{return[]}}
+  function localRecords(){return prepare(rawLocalRecords())}
+  function recordIdentity(record){return String(record?.key||record?.record_key||record?.data?.quoteNumber||'')}
+  function mergeRecords(...lists){
+    const seen=new Set(),out=[];
+    lists.forEach(list=>(list||[]).forEach(record=>{if(reserved(record))return;const id=recordIdentity(record);if(!id||seen.has(id))return;seen.add(id);out.push(record)}));
+    return out.sort((a,b)=>Number(b?.ts||0)-Number(a?.ts||0));
+  }
+  function cacheRecords(list){
+    try{localStorage.setItem(RECENTKEY,JSON.stringify((list||[]).slice(0,CACHE_MAX).map(({key,record_key,ts,total,data})=>({key:key||record_key,ts,total,data}))))}catch{}
+  }
+  function markHistorySync(){
+    lastCloudSyncAt=Date.now();const info={at:lastCloudSyncAt,loaded:cloudOffset,hasMore:cloudHasMore,pageSize:CLOUD_PAGE_SIZE};
+    try{localStorage.setItem(HISTORY_SYNC_KEY,JSON.stringify(info))}catch{}
+    document.dispatchEvent(new CustomEvent('aua-history-cloud-sync',{detail:info}));
+  }
 
   async function cloudClient(){
     if(clientPromise)return clientPromise;
     clientPromise=(async()=>{if(!window.supabase?.createClient)throw new Error('Online storage library is unavailable.');const response=await fetch('./online-storage.js',{cache:'force-cache'});if(!response.ok)throw new Error('Online storage configuration could not be read.');const source=await response.text(),url=source.match(/\burl\s*:\s*'([^']+)'/)?.[1],key=source.match(/\bkey\s*:\s*'([^']+)'/)?.[1];if(!url||!key)throw new Error('Online storage configuration is unavailable.');return window.supabase.createClient(url,key)})();return clientPromise;
   }
-  async function fetchCloudRecords(){
-    const client=await cloudClient(),{data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError)throw sessionError;if(!sessionData?.session?.user)throw new Error('Sign in to load quotation history.');
-    const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at,pdf_path').not('record_key','like',`${TEMPLATE_PREFIX}%`).not('record_key','like',`${VEHICLE_PREFIX}%`).order('updated_at',{ascending:false}).limit(1000);if(error)throw error;
-    const seen=new Set(),out=[];(data||[]).forEach(row=>{if(reserved(row))return;const key=String(row.record_key||''),quote=text(row?.data?.quoteNumber),identity=key||quote;if(!identity||seen.has(identity))return;seen.add(identity);out.push({key,record_key:key,ts:new Date(row.updated_at||0).getTime(),total:Number(row.total||0),data:row.data||{},pdf_path:row.pdf_path||null})});
-    try{localStorage.setItem(RECENTKEY,JSON.stringify(out.map(({key,ts,total,data})=>({key,ts,total,data}))))}catch{}return prepare(out);
+  async function fetchCloudPage({reset=false}={}){
+    if(cloudPageLoading)return records;cloudPageLoading=true;
+    try{
+      if(reset){cloudOffset=0;cloudHasMore=true}
+      if(!cloudHasMore&&!reset)return records;
+      const client=await cloudClient(),{data:sessionData,error:sessionError}=await client.auth.getSession();if(sessionError)throw sessionError;if(!sessionData?.session?.user)throw new Error('Sign in to load quotation history.');
+      const from=cloudOffset,to=from+CLOUD_PAGE_SIZE-1;
+      const {data,error}=await client.from('quotations').select('record_key,total,data,updated_at,pdf_path').not('record_key','like',`${TEMPLATE_PREFIX}%`).not('record_key','like',`${VEHICLE_PREFIX}%`).order('updated_at',{ascending:false}).range(from,to);if(error)throw error;
+      const seen=new Set(),page=[];(data||[]).forEach(row=>{if(reserved(row))return;const key=String(row.record_key||''),quote=text(row?.data?.quoteNumber),identity=key||quote;if(!identity||seen.has(identity))return;seen.add(identity);page.push({key,record_key:key,ts:new Date(row.updated_at||0).getTime(),total:Number(row.total||0),data:row.data||{},pdf_path:row.pdf_path||null})});
+      cloudOffset=from+(data||[]).length;cloudHasMore=(data||[]).length===CLOUD_PAGE_SIZE;
+      const base=reset?rawLocalRecords():records;
+      records=prepare(mergeRecords(page,base));cacheRecords(records);markHistorySync();return records;
+    }finally{cloudPageLoading=false}
+  }
+  async function loadOlderCloud(){
+    if(cloudPageLoading||!cloudHasMore)return;const button=$('auaHistoryCloudMore');if(button){button.disabled=true;button.textContent='Loading older…'}
+    try{await fetchCloudPage({reset:false});render();document.dispatchEvent(new CustomEvent('aua-history-updated',{detail:{count:records.length,cloudLoaded:cloudOffset,hasMore:cloudHasMore}}))}
+    catch(error){window.AUAHealthRuntime?.logError?.('history',error?.message||error);const status=$('cloudStatus');if(status){status.textContent=error?.message||'Unable to load older History records.';status.dataset.tone='error'}}
+    finally{if(button){button.disabled=false;button.textContent='Load older cloud records'}}
   }
 
   function addStyles(){
@@ -60,10 +89,16 @@
   }
   function vehicleCount(record){return vehicleCounts.get(norm(record?.data?.vehicle))||0}
   function render(){
-    const list=$('auaHistoryList');if(!list)return;const all=filteredRecords(),shown=all.slice(0,visibleLimit),remaining=Math.max(0,all.length-shown.length);$('auaHistoryCount').textContent=remaining?`${shown.length} of ${all.length} shown · ${records.length} quotations`:`${all.length} shown · ${records.length} quotation${records.length===1?'':'s'}`;
+    const list=$('auaHistoryList');if(!list)return;const all=filteredRecords(),shown=all.slice(0,visibleLimit),remaining=Math.max(0,all.length-shown.length),cloudLabel=cloudOffset?` · ${cloudOffset}${cloudHasMore?'+':''} cloud refreshed`:'';
+    $('auaHistoryCount').textContent=(remaining?`${shown.length} of ${all.length} shown · ${records.length} available`:`${all.length} shown · ${records.length} quotation${records.length===1?'':'s'} available`)+cloudLabel;
     const rows=shown.map(record=>{const d=record.data||{},count=vehicleCount(record);return`<button class="aua-history-row${selectedKey===record.key?' selected':''}" type="button" data-aua-key="${esc(record.key)}"><span class="aua-history-date">${esc(dateLabel(record))}</span><span><span class="aua-history-vehicle">${esc(d.vehicle||'NO VEHICLE')}</span>${count>1?`<span class="aua-history-vehicle-count">${count} records</span>`:''}<span class="aua-history-sub">${esc(d.customer||'Unnamed customer')}</span>${d.quoteNumber?`<span class="aua-history-quote">${esc(d.quoteNumber)}</span>`:''}</span><span class="aua-history-model-cell"><span class="aua-history-model">${esc(d.model||'—')}</span></span><span class="aua-history-total">S$ ${money(record.total)}</span><span class="aua-history-updated-cell"><span class="aua-history-updated">${esc(updatedLabel(record))}</span></span></button>`}).join('');
     list.innerHTML=rows||(all.length?'<div class="aua-history-no-results">No quotations are currently visible.</div>':'<div class="aua-history-no-results">No quotations match your search or filters.</div>');
-    if(remaining){const more=document.createElement('div');more.className='aua-history-more';more.innerHTML=`<button class="btn outline" type="button">Show ${Math.min(PAGE_SIZE,remaining)} more</button>`;more.querySelector('button').onclick=()=>{visibleLimit+=PAGE_SIZE;render()};list.appendChild(more)}
+    if(remaining||cloudHasMore){
+      const more=document.createElement('div');more.className='aua-history-more';more.style.gap='8px';more.style.flexWrap='wrap';
+      if(remaining){const local=document.createElement('button');local.className='btn outline';local.type='button';local.textContent=`Show ${Math.min(PAGE_SIZE,remaining)} more`;local.onclick=()=>{visibleLimit+=PAGE_SIZE;render()};more.appendChild(local)}
+      if(cloudHasMore){const cloud=document.createElement('button');cloud.id='auaHistoryCloudMore';cloud.className='btn secondary';cloud.type='button';cloud.textContent='Load older cloud records';cloud.onclick=loadOlderCloud;more.appendChild(cloud)}
+      list.appendChild(more);
+    }
     list.querySelectorAll('[data-aua-key]').forEach(row=>row.onclick=()=>selectRecord(row.dataset.auaKey));if(selectedKey&&!all.some(r=>String(r.key)===String(selectedKey)))clearPreview();
   }
   function clearPreview(){selectedKey='';const p=$('auaHistoryPreview');if(p)p.innerHTML='<div class="aua-history-empty"><b>Select a quotation</b><span>Review the details here before opening it.</span></div>';document.querySelectorAll('#auaHistoryList .aua-history-row.selected').forEach(row=>row.classList.remove('selected'))}
@@ -75,10 +110,16 @@
   function openExactRecord(record){if(!record?.data||typeof loadRecord!=='function')return;const protection=window.AUAUnsavedProtection;if(protection?.confirmDiscard&&!protection.confirmDiscard('This quotation has unsaved changes. Open the selected History quotation anyway?'))return;loadRecord(clone(record.data));const status=$('cloudStatus');if(status){status.textContent=`Opened${record.data?.vehicle?' '+record.data.vehicle:''}${record.data?.quoteNumber?' · '+record.data.quoteNumber:''} from History.`;status.dataset.tone='success'}closeHistory();setTimeout(()=>document.querySelector('.customer-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),0)}
   async function toggleArchive(record){if(!window.AUACloudIntegrity?.setArchived){alert('Archive control is not ready yet. Please refresh and try again.');return}const button=$('auaHistoryDelete');if(button){button.disabled=true;button.textContent=record.data?.archived?'Restoring…':'Archiving…'}try{await window.AUACloudIntegrity.setArchived(record,!record.data?.archived);await syncRecords(false)}catch(error){alert(error?.message||'Unable to update this quotation.');if(button)button.disabled=false}}
   async function syncRecords(showStatus=false){
-    if(loading)return;loading=true;const refresh=$('auaHistoryRefresh');if(refresh){refresh.disabled=true;refresh.textContent='Loading…'}try{try{records=await fetchCloudRecords();if(selectedKey&&!records.some(r=>String(r.key)===String(selectedKey)))selectedKey='';render()}catch(error){console.warn('Cloud History refresh failed; using local quotation cache.',error);if(!records.length)records=localRecords();render();if(showStatus){const status=$('cloudStatus');if(status){status.textContent=error?.message||'Using cached quotation history.';status.dataset.tone='error'}}}document.dispatchEvent(new CustomEvent('aua-history-updated',{detail:{count:records.length}}))}finally{loading=false;if(refresh){refresh.disabled=false;refresh.textContent='Refresh'}}
+    if(loading)return;loading=true;const refresh=$('auaHistoryRefresh');if(refresh){refresh.disabled=true;refresh.textContent='Loading…'}
+    try{
+      try{await fetchCloudPage({reset:true});if(selectedKey&&!records.some(r=>String(r.key)===String(selectedKey)))selectedKey='';render()}
+      catch(error){console.warn('Cloud History refresh failed; using local quotation cache.',error);window.AUAHealthRuntime?.logError?.('history',error?.message||error);if(!records.length)records=localRecords();render();if(showStatus){const status=$('cloudStatus');if(status){status.textContent=error?.message||'Using cached quotation history.';status.dataset.tone='error'}}}
+      document.dispatchEvent(new CustomEvent('aua-history-updated',{detail:{count:records.length,cloudLoaded:cloudOffset,hasMore:cloudHasMore}}));
+    }finally{loading=false;if(refresh){refresh.disabled=false;refresh.textContent='Refresh'}}
   }
   function openHistory(){const overlay=$('auaHistoryOverlay');if(!overlay)return Promise.resolve();overlay.hidden=false;document.body.style.overflow='hidden';visibleLimit=PAGE_SIZE;if(!records.length)records=localRecords();clearPreview();render();setTimeout(()=>$('auaHistorySearch')?.focus(),0);syncRecords(false).catch(error=>console.warn('Background History refresh failed.',error));return Promise.resolve()}
   function closeHistory(){const overlay=$('auaHistoryOverlay');if(overlay)overlay.hidden=true;document.body.style.overflow=''}
-  function install(){const sourceButton=$('cloudRecordsTab'),sourcePanel=$('cloudRecordsPanel');if(!sourceButton||!sourcePanel){setTimeout(install,200);return}if(sourceButton.dataset.auaHistoryEnhanced)return;sourceButton.dataset.auaHistoryEnhanced='4';sourceButton.textContent='History';sourcePanel.classList.add('aua-history-source-hidden');addStyles();makeWorkspace();sourceButton.onclick=()=>openHistory()}
+  function install(){const sourceButton=$('cloudRecordsTab'),sourcePanel=$('cloudRecordsPanel');if(!sourceButton||!sourcePanel){setTimeout(install,200);return}if(sourceButton.dataset.auaHistoryEnhanced)return;sourceButton.dataset.auaHistoryEnhanced='5';sourceButton.textContent='History';sourcePanel.classList.add('aua-history-source-hidden');addStyles();makeWorkspace();sourceButton.onclick=()=>openHistory()}
+  window.AUAHistoryRuntime={health:()=>({available:records.length,cloudLoaded:cloudOffset,hasMore:cloudHasMore,pageSize:CLOUD_PAGE_SIZE,lastCloudSyncAt,loading:loading||cloudPageLoading}),loadMore:loadOlderCloud,refresh:()=>syncRecords(true)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
