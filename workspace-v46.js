@@ -43,11 +43,21 @@
     document.head.appendChild(style);
   }
 
+  function addVisualRefresh(){
+    if(document.getElementById('auaVisualRefreshV47'))return;
+    const link=document.createElement('link');
+    link.id='auaVisualRefreshV47';
+    link.rel='stylesheet';
+    link.href='./visual-refresh-v47.css';
+    document.head.appendChild(link);
+  }
+
   function install(){
     const header=document.getElementById('auaWorkspaceHeader');
     const main=header?.querySelector('.aua-workspace-main');
     if(!main||document.getElementById('auaQuickJump'))return;
     addStyles();
+    addVisualRefresh();
     const nav=document.createElement('nav');
     nav.id='auaQuickJump';
     nav.className='aua-quick-jump';
