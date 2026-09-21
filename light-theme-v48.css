@@ -1,0 +1,20 @@
+/* v48 light palette adjustment. Screen/editor only: no PDF, print, cloud or quotation logic changes. */
+:root{--aua47-ink:#243b56;--aua47-muted:#6d8199;--aua47-navy:#31547b;--aua47-blue:#3976d7;--aua47-border:#e1e9f4;--aua47-shadow:0 4px 16px rgba(35,70,112,.04)}
+html:not(.cloud-auth-gate) body{background:#f6f9fd;color:#243b56}
+html:not(.cloud-auth-gate) body .editor{background:linear-gradient(180deg,#f7faff 0%,#fbfcff 340px,#fbfcff 100%);border-right-color:#e3ebf5}
+html:not(.cloud-auth-gate) body .aua-workspace-header{border-bottom:1px solid #cddff5;background:linear-gradient(125deg,#e6f0ff 0%,#f0f6ff 62%,#f8fbff 100%);box-shadow:0 6px 18px rgba(44,87,143,.09)}
+html:not(.cloud-auth-gate) body .aua-workspace-kicker{color:#557eae}
+html:not(.cloud-auth-gate) body .aua-workspace-title{color:#23466f}
+html:not(.cloud-auth-gate) body .aua-workspace-ref{color:#59738f}
+html:not(.cloud-auth-gate) body .aua-workspace-status{border-color:#c9dcf2;background:#fff;color:#33577e}
+html:not(.cloud-auth-gate) body .aua-workspace-actions{border-top-color:#d4e2f5}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .btn{border-color:#d5e2f1!important;background:#fff!important;color:#375775!important;box-shadow:0 1px 4px rgba(39,74,115,.04)!important}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .aua-workspace-save{border-color:#82abe6!important;background:#3978d7!important;color:#fff!important;box-shadow:0 3px 9px rgba(46,105,186,.16)!important}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .aua-workspace-wa{border-color:#89d5ac!important;background:#29a968!important;color:#fff!important}
+html:not(.cloud-auth-gate) body .aua-quick-jump button{border-color:#cddff4;background:#fff;color:#47688d}
+html:not(.cloud-auth-gate) body .aua-quick-jump button:hover{border-color:#aac9f1;background:#eaf3ff;color:#24589c}
+html:not(.cloud-auth-gate) body .editor>.customer-panel{border-color:#d4e3f5;background:#fff;box-shadow:0 4px 14px rgba(35,76,127,.04)}
+html:not(.cloud-auth-gate) body .editor>.sections-panel{border-color:#d5e4f4;background:#fbfdff;box-shadow:0 4px 14px rgba(35,76,127,.04)}
+html:not(.cloud-auth-gate) body .editor .section-head{border-color:#e5edf7;background:#f7faff}
+html:not(.cloud-auth-gate) body .editor .item:hover{border-color:#cbdcf0;background:#fff}
+@media screen{html:not(.cloud-auth-gate) body .preview-wrap{background:#f1f5fb}}
