@@ -50,6 +50,12 @@
     link.rel='stylesheet';
     link.href='./visual-refresh-v47.css';
     document.head.appendChild(link);
+    // Light palette overrides the earlier dark header; CSS order keeps the layout intact.
+    const light=document.createElement('link');
+    light.id='auaLightThemeV48';
+    light.rel='stylesheet';
+    light.href='./light-theme-v48.css';
+    document.head.appendChild(light);
   }
 
   function install(){
