@@ -13,7 +13,7 @@
     style.textContent=`
       html:not(.cloud-auth-gate) .aua-workspace-main{align-items:center;flex-wrap:wrap;gap:7px 10px}
       html:not(.cloud-auth-gate) .aua-quick-jump{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-left:auto}
-      html:not(.cloud-auth-gate) .aua-quick-jump button{min-height:29px;padding:5px 9px;border:1px solid #d6e0ec;border-radius:8px;background:#fff;color:#425673;font:750 10px/1.2 inherit;cursor:pointer;white-space:nowrap}
+      html:not(.cloud-auth-gate) .aua-quick-jump button{min-height:29px;padding:5px 9px;border:1px solid #d6e0ec;border-radius:8px;background:#fff;color:#425673;font-family:inherit;font-size:10px;font-weight:750;line-height:1.2;cursor:pointer;white-space:nowrap}
       html:not(.cloud-auth-gate) .aua-quick-jump button:hover{background:#eff6ff;border-color:#adc9f2;color:#1d4ed8}
       html:not(.cloud-auth-gate) .aua-quick-jump button:focus-visible{outline:3px solid rgba(37,99,235,.25);outline-offset:2px}
       html:not(.cloud-auth-gate) .customer-panel,
@@ -33,6 +33,9 @@
         html:not(.cloud-auth-gate) .aua-workspace-actions .aua-workspace-new,
         html:not(.cloud-auth-gate) .aua-workspace-actions .aua-workspace-save{grid-column:span 3}
         html:not(.cloud-auth-gate) .customer-panel .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+        html:not(.cloud-auth-gate) .customer-panel,
+        html:not(.cloud-auth-gate) .sections-panel,
+        html:not(.cloud-auth-gate) .remarks-panel{scroll-margin-top:195px}
       }
       @media(max-width:370px){html:not(.cloud-auth-gate) .customer-panel .grid{grid-template-columns:1fr}}
       @media print{.aua-quick-jump{display:none!important}}
