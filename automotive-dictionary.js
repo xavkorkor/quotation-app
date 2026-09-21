@@ -5,6 +5,7 @@
     return new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=src;
+      // Dynamically inserted classic scripts with async=false execute in insertion order.
       script.async=false;
       script.onload=()=>resolve(src);
       script.onerror=()=>reject(new Error(`Unable to load ${src}`));
@@ -13,7 +14,8 @@
   }
 
   function loadOrdered(sources){
-    return sources.reduce((promise,src)=>promise.then(()=>loadScript(src)),Promise.resolve());
+    // Start all downloads together; async=false above still preserves execution order.
+    return Promise.all(sources.map(loadScript));
   }
 
   function blockLegacyAutoMigration(){
@@ -109,6 +111,10 @@
     console.error('Quotation runtime failed to initialise',error);
     throw error;
   });
+
+  // Navigation is non-critical UI; a loading error must never block quotation functions.
+  corePromise.then(()=>loadScript('./workspace-v46.js'))
+    .catch(error=>console.warn('Workspace quick navigation could not load.',error));
 
   const historyModules=[
     './history-enhancements.js',
