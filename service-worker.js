@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v46';
+const CACHE='au-quotation-v47';
 
 // Normal quotation startup uses compact production bundles.
 // History executes on demand; its assets remain available in the offline cache.
@@ -8,6 +8,7 @@ const ASSETS=[
   './manifest.webmanifest',
   './header_1.txt',
   './interface-polish.css',
+  './visual-refresh-v47.css',
   './automotive-dictionary.js',
   './app-core.js',
   './workflow-suite.js',
@@ -47,7 +48,7 @@ self.addEventListener('fetch',event=>{
         const copy=response.clone();
         caches.open(CACHE).then(cache=>cache.put(request,copy));
         return response;
-      }).catch(()=>caches.match(request).then(cached=>cached||caches.match('./index.html')))
+      }).catch(()=>caches.match(request).then(cached||caches.match('./index.html')))
     );
     return;
   }
