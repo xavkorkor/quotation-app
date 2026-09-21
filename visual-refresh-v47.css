@@ -1,0 +1,65 @@
+/* v47 visual refresh — quotation workspace only. PDF and print layouts are deliberately untouched. */
+:root{--aua47-ink:#14243b;--aua47-muted:#62738c;--aua47-navy:#102b4e;--aua47-blue:#235ddd;--aua47-border:#dce5f0;--aua47-shadow:0 6px 22px rgba(21,47,84,.055)}
+html:not(.cloud-auth-gate) body{background:#edf2f9;color:var(--aua47-ink)}
+html:not(.cloud-auth-gate) body .editor{background:linear-gradient(180deg,#f0f5fc 0,#f5f8fc 330px,#f5f8fc 100%);border-right:1px solid #d9e4f2;scrollbar-color:#c1cfdf transparent}
+/* Main workspace header: stronger branding and clearly separated actions. */
+html:not(.cloud-auth-gate) body .aua-workspace-header{overflow:visible;border-bottom:1px solid rgba(15,39,71,.14);background:linear-gradient(125deg,#102a4c 0%,#173d69 63%,#21558b 100%);box-shadow:0 9px 24px rgba(18,52,94,.17);backdrop-filter:none}
+html:not(.cloud-auth-gate) body .aua-workspace-kicker{color:#b7d5ff;font-size:9px;letter-spacing:.14em}
+html:not(.cloud-auth-gate) body .aua-workspace-title{color:#fff;font-size:18px;letter-spacing:-.025em;line-height:1.2}
+html:not(.cloud-auth-gate) body .aua-workspace-ref{color:#d9e8fa;font-size:10px}
+html:not(.cloud-auth-gate) body .aua-workspace-status{padding:4px 9px;border:1px solid rgba(219,234,254,.35);background:rgba(255,255,255,.15);color:#fff;letter-spacing:.045em}
+html:not(.cloud-auth-gate) body .aua-workspace-status[data-tone="good"]{background:#e0fce8;color:#176137;border-color:#b7eacb}
+html:not(.cloud-auth-gate) body .aua-workspace-status[data-tone="done"]{background:#dff4ff;color:#15517f;border-color:#abdff8}
+html:not(.cloud-auth-gate) body .aua-workspace-status[data-tone="bad"]{background:#fee5e7;color:#ad2633;border-color:#ffc0c6}
+html:not(.cloud-auth-gate) body .aua-workspace-actions{padding-top:10px;border-top:1px solid rgba(219,234,254,.16);margin-top:11px;gap:7px}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .btn{min-height:38px;border-radius:9px!important;border:1px solid rgba(207,223,244,.8)!important;background:#f8fbff!important;color:#214265!important;font-size:10.5px;font-weight:800;box-shadow:0 2px 5px rgba(8,24,46,.08)!important}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .aua-workspace-save{background:#4e82f4!important;border-color:#77a2ff!important;color:#fff!important;box-shadow:0 3px 12px rgba(1,13,42,.16)!important}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .aua-workspace-wa{background:#18a963!important;border-color:#47c78a!important;color:#fff!important}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.035)}
+html:not(.cloud-auth-gate) body .aua-quick-jump button{border-color:rgba(224,237,255,.32);background:rgba(255,255,255,.1);color:#e6f0ff;font-size:10px;font-weight:750;min-height:30px;padding:6px 10px}
+html:not(.cloud-auth-gate) body .aua-quick-jump button:hover{border-color:#bedcff;background:rgba(255,255,255,.23);color:#fff}
+/* Staff area: light utility strip that complements, rather than competes with, the main header. */
+html:not(.cloud-auth-gate) body #cloudPanel{border:1px solid var(--aua47-border);border-radius:11px;background:#fff;box-shadow:0 2px 10px rgba(15,39,71,.04)}
+html:not(.cloud-auth-gate) body #cloudUser{color:#25405e}
+html:not(.cloud-auth-gate) body #cloudRefresh,html:not(.cloud-auth-gate) body #cloudExport,html:not(.cloud-auth-gate) body #cloudSignOut,html:not(.cloud-auth-gate) body #auaVehicleMasterManagerBtn,html:not(.cloud-auth-gate) body #auaSystemHealthBtn{border:1px solid #d9e4f1;border-radius:8px;background:#f8fbff;color:#38536f;font-weight:750}
+html:not(.cloud-auth-gate) body #cloudStatus:not(.aua-cloud-quiet){border:1px solid #e4ecf6;background:#f8fbff}
+/* Editor panels. Do not target .paper, print output or PDF detail cards. */
+html:not(.cloud-auth-gate) body .editor>.panel:not(#cloudPanel){border:1px solid var(--aua47-border);border-radius:13px;background:#fff;box-shadow:var(--aua47-shadow)}
+html:not(.cloud-auth-gate) body .editor>.customer-panel{border-color:#c7d9f2;background:linear-gradient(180deg,#fff 0%,#fcfdff 100%);box-shadow:0 6px 23px rgba(22,72,137,.075)}
+html:not(.cloud-auth-gate) body .editor>.sections-panel{border:1px solid #bad0eb;background:#f7faff;box-shadow:0 7px 22px rgba(26,76,145,.07)}
+html:not(.cloud-auth-gate) body .editor>.panel .panel-title{color:#29486d;font-size:10.5px;letter-spacing:.095em;line-height:1.35}
+html:not(.cloud-auth-gate) body .editor>.panel .panel-title::before{width:7px;height:7px;flex-basis:7px;background:#3e77dc;box-shadow:0 0 0 4px #e9f1ff}
+html:not(.cloud-auth-gate) body .editor>.sections-panel .panel-title{color:#1c4b91}
+html:not(.cloud-auth-gate) body .editor label{color:#425773;font-size:11px;font-weight:700;letter-spacing:0}
+html:not(.cloud-auth-gate) body .editor input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),html:not(.cloud-auth-gate) body .editor select,html:not(.cloud-auth-gate) body .editor textarea{border-color:#d3dfec;background:#fff;color:#1d324e;border-radius:9px;box-shadow:0 1px 2px rgba(16,43,78,.025);font-size:13px;line-height:1.35}
+html:not(.cloud-auth-gate) body .editor input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,html:not(.cloud-auth-gate) body .editor select:focus,html:not(.cloud-auth-gate) body .editor textarea:focus{outline:0;border-color:#3977e6;box-shadow:0 0 0 3px rgba(62,119,220,.14);background:#fff}
+html:not(.cloud-auth-gate) body .editor input[readonly]{background:#f4f7fc!important;color:#536980!important}
+html:not(.cloud-auth-gate) body .editor .checkrow{gap:9px}
+html:not(.cloud-auth-gate) body .editor .checkrow label{border:1px solid #e3eaf3;border-radius:8px;padding:8px 10px;background:#f8fafd;display:inline-flex;gap:8px;align-items:center;min-height:35px}
+html:not(.cloud-auth-gate) body .editor .checkrow input{accent-color:#2f6ddd}
+/* Item cards and section controls. Preserve their existing DOM, handlers and column widths. */
+html:not(.cloud-auth-gate) body .editor .section-card{border:1px solid #d8e4f2;border-radius:12px;background:#fff;box-shadow:0 3px 12px rgba(20,55,97,.045);padding:11px}
+html:not(.cloud-auth-gate) body .editor .section-head{border:1px solid #e3ebf5;border-radius:9px;background:#f2f6fc;gap:7px}
+html:not(.cloud-auth-gate) body .editor .section-head>input{min-width:0;background:#fff;border:1px solid #d5e1ee;border-radius:7px;font-weight:750;color:#203e65}
+html:not(.cloud-auth-gate) body .editor .section-mini-total{font-size:10.5px;font-weight:850;color:#204c83}
+html:not(.cloud-auth-gate) body .editor .item{border:1px solid #e1e8f2;border-left:3px solid #a8bfdf;border-radius:9px;background:#fff;box-shadow:0 1px 4px rgba(18,48,86,.025)}
+html:not(.cloud-auth-gate) body .editor .item:hover{border-color:#bdcfea;background:#fbfdff}
+html:not(.cloud-auth-gate) body .editor .item.included{border-left-color:#27ac70;background:#f5fdf9}
+html:not(.cloud-auth-gate) body .editor .aua-item-drag-handle,html:not(.cloud-auth-gate) body .editor .aua-item-options>summary{border-color:#d4e0ec;background:#f3f7fc;color:#6c819b}
+html:not(.cloud-auth-gate) body .editor .aua-item-options .item-actions{border:1px solid #dbe5f0;border-radius:10px;box-shadow:0 12px 30px rgba(18,42,77,.16)}
+html:not(.cloud-auth-gate) body .editor .btn{border-radius:9px;font-weight:750}
+html:not(.cloud-auth-gate) body .editor .btn:focus-visible{outline:3px solid rgba(46,113,230,.25);outline-offset:2px}
+html:not(.cloud-auth-gate) body .editor #auaAddSectionTop{border:1px solid #c0d9fa;background:#ebf4ff;color:#2055ad;font-size:10.5px}
+html:not(.cloud-auth-gate) body .editor #auaTemplateTrigger{border:1px solid #d7e2ef;background:#fff;color:#305579;font-size:10.5px}
+html:not(.cloud-auth-gate) body .editor .discount-panel .disc{grid-template-columns:minmax(90px,125px) minmax(0,1fr)}
+html:not(.cloud-auth-gate) body .editor #auaActionToggle{border:1px solid #d8e4f1;border-radius:10px;background:#fff;color:#2a4768;box-shadow:0 2px 8px rgba(18,48,86,.045)}
+/* Readable overlays while leaving positioning, visibility, workflow and data actions intact. */
+#auaHistoryOverlay:not([hidden]) .aua-history-row{border-radius:9px}
+#auaHistoryOverlay:not([hidden]) .aua-history-row:hover{background:#f1f6ff}
+#auaHistoryOverlay:not([hidden]) input:focus-visible,#auaHistoryOverlay:not([hidden]) button:focus-visible{outline:3px solid rgba(46,113,230,.23);outline-offset:2px}
+/* Small screens: prevent long labels and toolbar actions from causing horizontal overflow. */
+@media(max-width:1120px){html:not(.cloud-auth-gate) body .editor{border-right:0}}
+@media(max-width:620px){html:not(.cloud-auth-gate) body .editor>.panel:not(#cloudPanel){padding:12px}html:not(.cloud-auth-gate) body .aua-workspace-title{font-size:17px}html:not(.cloud-auth-gate) body .aua-workspace-actions .btn{font-size:10px;padding:8px 6px}html:not(.cloud-auth-gate) body .editor .section-head{flex-wrap:wrap}html:not(.cloud-auth-gate) body .editor .section-head>input{flex:1 1 145px}html:not(.cloud-auth-gate) body .editor .checkrow label{padding:7px 9px}}
+@media(max-width:420px){html:not(.cloud-auth-gate) body .editor .section-card{padding:8px}html:not(.cloud-auth-gate) body .editor .section-mini-total{order:3;flex:1 1 auto;text-align:right}html:not(.cloud-auth-gate) body .editor .aua-workspace-actions .btn{font-size:9.5px}html:not(.cloud-auth-gate) body .editor .customer-panel .grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){html:not(.cloud-auth-gate) body .editor *,html:not(.cloud-auth-gate) body .aua-workspace-header *{transition:none!important;scroll-behavior:auto!important}}
+@media print{.aua-quick-jump{display:none!important}}
