@@ -1,1 +1,0 @@
-Visual refresh v47 stylesheet. No quotation logic, cloud, PDF, or WhatsApp changes.
