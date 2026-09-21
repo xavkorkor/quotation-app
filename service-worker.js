@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v47';
+const CACHE='au-quotation-v48';
 
 // Normal quotation startup uses compact production bundles.
 // History executes on demand; its assets remain available in the offline cache.
@@ -9,6 +9,7 @@ const ASSETS=[
   './header_1.txt',
   './interface-polish.css',
   './visual-refresh-v47.css',
+  './light-theme-v48.css',
   './automotive-dictionary.js',
   './app-core.js',
   './workflow-suite.js',
