@@ -58,12 +58,22 @@
     document.head.appendChild(light);
   }
 
+  function addUppercaseFix(){
+    if(document.getElementById('auaUppercaseScriptV49'))return;
+    const script=document.createElement('script');
+    script.id='auaUppercaseScriptV49';
+    script.src='./uppercase-pdf-v49.js';
+    script.onerror=()=>console.error('Quotation uppercase/PDF formatting could not load. Please refresh.');
+    document.head.appendChild(script);
+  }
+
   function install(){
     const header=document.getElementById('auaWorkspaceHeader');
     const main=header?.querySelector('.aua-workspace-main');
     if(!main||document.getElementById('auaQuickJump'))return;
     addStyles();
     addVisualRefresh();
+    addUppercaseFix();
     const nav=document.createElement('nav');
     nav.id='auaQuickJump';
     nav.className='aua-quick-jump';
