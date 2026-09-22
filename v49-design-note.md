@@ -1,1 +1,0 @@
-Temporary tracking note for the uppercase PDF change. This file will be removed before release.
