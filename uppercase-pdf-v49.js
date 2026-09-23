@@ -45,6 +45,26 @@
       .editor #remarks, .editor #sections [data-desc],
       .editor #sections [data-qty], .editor #sections [data-section-title],
       .editor #auaRemarksEditor { text-transform: uppercase !important; }
+
+      /* v50: The live PDF generator captures .paper, so screen-only print rules
+         would not darken downloaded PDFs. Restrict contrast changes to .paper
+         to keep the light quotation editor, button colors and page layout intact. */
+      .paper, .paper * { color: #111827 !important; }
+      .paper .thead { border-top-color: #303b4b !important; border-bottom-color: #5b6574 !important; }
+      .paper .line, .paper .summary-row, .paper .totals > div,
+      .paper .adjust, .paper .aua-pdf-detail-row {
+        border-bottom-color: #87909d !important;
+      }
+      .paper .summary, .paper .summary-head, .paper .summary-total,
+      .paper .adjust.final, .paper .grand, .paper .remark-print,
+      .paper .aua-pdf-detail-card, .paper .aua-pdf-detail-head,
+      .paper .aua-pdf-meta #pQuoteNumberWrap {
+        border-color: #657184 !important;
+      }
+      .paper, .paper * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     `;
     document.head.appendChild(style);
   }
