@@ -65,6 +65,18 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
+
+      /* v51: html2pdf uses CSS page-break rules when exporting .paper.
+         Keep the complete Terms & Conditions block on one page; if it will not
+         fit in the remaining space, move it to the next page instead of slicing it. */
+      .paper .notes {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .paper .notes > div {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
     `;
     document.head.appendChild(style);
   }
