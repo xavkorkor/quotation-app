@@ -81,7 +81,56 @@
     document.head.appendChild(style);
   }
 
+  function prepareRemarksPageBreak() {
+    document.querySelectorAll('.aua-remark-page-break-v52').forEach(el=>el.remove());
+    const paper=document.querySelector('.paper');
+    const remarks=document.querySelector('.paper .remark-print');
+    if(!paper||!remarks||getComputedStyle(remarks).display==='none'||!remarks.textContent.trim())return()=>{};
+
+    const paperRect=paper.getBoundingClientRect();
+    const remarksRect=remarks.getBoundingClientRect();
+    if(!paperRect.width||!remarksRect.height)return()=>{};
+
+    // html2pdf exports A4 with 1mm side margins. Convert that printable A4 height
+    // back into the source-paper pixel scale so we can detect a real page crossing.
+    const sourcePageHeight=paperRect.width*(297/208);
+    const top=remarksRect.top-paperRect.top;
+    const height=remarksRect.height;
+    if(height>=sourcePageHeight-8)return()=>{};
+
+    const offset=((top%sourcePageHeight)+sourcePageHeight)%sourcePageHeight;
+    const remaining=sourcePageHeight-offset;
+    if(height+4<=remaining)return()=>{};
+
+    // html2pdf's existing "legacy" page-break mode recognises this class reliably.
+    // Insert it only for the export, then remove it immediately afterwards.
+    const breaker=document.createElement('div');
+    breaker.className='html2pdf__page-break aua-remark-page-break-v52';
+    breaker.setAttribute('aria-hidden','true');
+    breaker.style.cssText='height:0;margin:0;padding:0;border:0;';
+    remarks.parentNode.insertBefore(breaker,remarks);
+    return()=>breaker.remove();
+  }
+
+  function installRemarksPaginationGuard(attempt=0) {
+    const original=window.makePdfBlob;
+    if(typeof original!=='function'){
+      if(attempt<50)setTimeout(()=>installRemarksPaginationGuard(attempt+1),100);
+      return;
+    }
+    if(original.__auaRemarksPaginationV52)return;
+    const wrapped=async function(){
+      const cleanup=prepareRemarksPageBreak();
+      try{return await original.apply(this,arguments)}
+      finally{cleanup()}
+    };
+    wrapped.__auaRemarksPaginationV52=true;
+    wrapped.__auaOriginalMakePdfBlob=original;
+    window.makePdfBlob=wrapped;
+  }
+
   installStyles();
+  installRemarksPaginationGuard();
   document.addEventListener('input', normalizeField, true);
   document.addEventListener('change', normalizeField, true);
 })();
