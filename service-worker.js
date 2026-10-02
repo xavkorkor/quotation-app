@@ -1,4 +1,4 @@
-const CACHE='au-quotation-v54';
+const CACHE='au-quotation-v55';
 
 // Normal quotation startup uses compact production bundles.
 // History executes on demand; its assets remain available in the offline cache.
