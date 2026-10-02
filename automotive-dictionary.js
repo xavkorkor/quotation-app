@@ -112,9 +112,13 @@
     throw error;
   });
 
-  // Navigation is non-critical UI; a loading error must never block quotation functions.
-  corePromise.then(()=>loadScript('./workspace-v46.js'))
-    .catch(error=>console.warn('Workspace quick navigation could not load.',error));
+  // Non-critical workspace helpers load after the core quotation runtime.
+  // A helper failure must never block quotation calculations, saving or PDF export.
+  corePromise.then(()=>Promise.all([
+    loadScript('./workspace-v46.js'),
+    loadScript('./collated-list.js')
+  ]))
+    .catch(error=>console.warn('A quotation workspace helper could not load.',error));
 
   const historyModules=[
     './history-enhancements.js',
