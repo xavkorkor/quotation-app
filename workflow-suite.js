@@ -231,8 +231,8 @@
   function collectQuoteIssues(){
     const errors=[],warnings=[],seen=new Map();let used=0;
     try{(S||[]).forEach((sectionData,si)=>(sectionData.items||[]).forEach((itemData,ii)=>{
-      const d=text(itemData.d||itemData.desc),p=text(itemData.p??itemData.price),included=!!itemData.included;if(!d&&!p)return;used++;
-      if(d&&!included&&p==='')errors.push(`${sectionData.title||'Section '+(si+1)}: ${d} has no price.`);
+      const d=text(itemData.d||itemData.desc),p=text(itemData.p??itemData.price),included=!!itemData.included,sectionPriced=String(sectionData?.sectionPrice??'').trim()!=='';if(!d&&!p)return;used++;
+      if(d&&!included&&p===''&&!sectionPriced)errors.push(`${sectionData.title||'Section '+(si+1)}: ${d} has no price.`);
       if(p!==''&&!d)errors.push(`${sectionData.title||'Section '+(si+1)}: item ${ii+1} has a price but no description.`);
       if(d){const key=`${si}|${normDesc(d)}`;if(!seen.has(key))seen.set(key,{description:normDesc(d),section:sectionData.title||`Section ${si+1}`,count:0});seen.get(key).count++}
     }));}catch{}
