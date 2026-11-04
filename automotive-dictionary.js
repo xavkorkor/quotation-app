@@ -116,7 +116,8 @@
   // A helper failure must never block quotation calculations, saving or PDF export.
   corePromise.then(()=>Promise.all([
     loadScript('./workspace-v46.js'),
-    loadScript('./collated-list.js')
+    loadScript('./collated-list.js'),
+    loadScript('./section-price.js')
   ]))
     .catch(error=>console.warn('A quotation workspace helper could not load.',error));
 
