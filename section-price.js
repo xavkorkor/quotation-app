@@ -19,7 +19,8 @@
   }
 
   function patchSectionFactory(){
-    if(typeof window.section!=='function'||window.section.__auaSectionPrice)return false;
+    if(typeof window.section!=='function')return false;
+    if(window.section.__auaSectionPrice)return true;
     const base=window.section;
     window.section=function(x={}){
       const result=base.apply(this,arguments);
@@ -31,7 +32,8 @@
   }
 
   function patchTotals(){
-    if(typeof window.totals!=='function'||window.totals.__auaSectionPrice)return false;
+    if(typeof window.totals!=='function')return false;
+    if(window.totals.__auaSectionPrice)return true;
     const base=window.totals;
     window.totals=function(){
       const result=base.apply(this,arguments);
@@ -69,7 +71,8 @@
   }
 
   function patchValidation(){
-    if(typeof window.validationIssues!=='function'||window.validationIssues.__auaSectionPrice)return false;
+    if(typeof window.validationIssues!=='function')return false;
+    if(window.validationIssues.__auaSectionPrice)return true;
     window.validationIssues=function(){
       const issues=[];
       try{
@@ -157,7 +160,8 @@
   }
 
   function patchRender(){
-    if(typeof window.render!=='function'||window.render.__auaSectionPrice)return false;
+    if(typeof window.render!=='function')return false;
+    if(window.render.__auaSectionPrice)return true;
     const base=window.render;
     window.render=function(){
       const result=base.apply(this,arguments);
@@ -169,7 +173,8 @@
   }
 
   function patchUpdate(){
-    if(typeof window.upd!=='function'||window.upd.__auaSectionPrice)return false;
+    if(typeof window.upd!=='function')return false;
+    if(window.upd.__auaSectionPrice)return true;
     const base=window.upd;
     window.upd=function(){
       const result=base.apply(this,arguments);
