@@ -155,7 +155,7 @@
         if(line.children[3])line.children[3].textContent='Included';
       });
       const final=card.querySelector('.adjust.final');
-      if(final?.children?.[0])final.children[0].textContent=Number(entry.sd||0)>0?'SECTION TOTAL':'SECTION PRICE';
+      if(final?.children?.[0])final.children[0].textContent=Number(entry.sd||0)>0?'SECTION TOTAL':'';
     });
   }
 
