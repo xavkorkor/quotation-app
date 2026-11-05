@@ -1,0 +1,252 @@
+/* v58 editor tidy pass — UI only. No quotation/PDF/print calculations or content are changed. */
+
+html:not(.cloud-auth-gate) body .editor{
+  padding:14px 14px 18px;
+}
+html:not(.cloud-auth-gate) body .editor>.panel:not(#cloudPanel){
+  margin-bottom:10px;
+  padding:14px;
+  border-radius:12px;
+  box-shadow:0 3px 12px rgba(35,76,127,.035);
+}
+html:not(.cloud-auth-gate) body .editor>.panel .panel-title{
+  margin-bottom:9px;
+}
+html:not(.cloud-auth-gate) body .customer-panel .grid{
+  gap:9px 10px;
+}
+html:not(.cloud-auth-gate) body .editor label{
+  margin-bottom:4px;
+}
+html:not(.cloud-auth-gate) body .editor input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html:not(.cloud-auth-gate) body .editor select,
+html:not(.cloud-auth-gate) body .editor textarea{
+  min-height:38px;
+  padding:8px 10px;
+}
+html:not(.cloud-auth-gate) body .aua-workspace-header{
+  margin-bottom:10px;
+  padding-top:11px;
+  padding-bottom:11px;
+}
+html:not(.cloud-auth-gate) body .aua-workspace-main{
+  gap:9px 12px;
+}
+html:not(.cloud-auth-gate) body .aua-workspace-actions{
+  margin-top:9px;
+  padding-top:8px;
+  gap:6px;
+}
+html:not(.cloud-auth-gate) body .aua-workspace-actions .btn{
+  min-height:35px;
+  padding:7px 9px;
+}
+html:not(.cloud-auth-gate) body .aua-quick-jump{
+  gap:4px;
+}
+html:not(.cloud-auth-gate) body .aua-quick-jump button{
+  min-height:27px;
+  padding:4px 8px;
+  border-radius:7px;
+  font-size:9.5px;
+}
+
+/* Make section controls read as one clean toolbar rather than a row of equal-weight buttons. */
+html:not(.cloud-auth-gate) body .sections-panel .aua-sections-topbar{
+  margin-bottom:8px;
+}
+html:not(.cloud-auth-gate) body .editor .section-card{
+  margin-top:8px;
+  padding:9px;
+  border-radius:11px;
+  box-shadow:0 2px 8px rgba(20,55,97,.035);
+}
+html:not(.cloud-auth-gate) body .editor .section-head{
+  gap:5px;
+  padding:5px 6px;
+  border-radius:8px;
+}
+html:not(.cloud-auth-gate) body .editor .section-head>input{
+  min-height:34px;
+  padding:7px 9px;
+}
+html:not(.cloud-auth-gate) body .editor .section-head>.btn{
+  width:32px;
+  min-width:32px;
+  min-height:32px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  font-size:11px;
+}
+html:not(.cloud-auth-gate) body .editor .section-head>.danger{
+  background:#fff7f7;
+  color:#a33a3a;
+}
+html:not(.cloud-auth-gate) body .editor .section-mini-total{
+  min-width:82px;
+  padding:5px 7px;
+  border:1px solid #dce6f2;
+  border-radius:7px;
+  background:#fff;
+  text-align:right;
+}
+
+/* Lighter item cards; keep the same fields and workflow. */
+html:not(.cloud-auth-gate) body .editor .item{
+  margin-top:6px;
+  padding:7px 7px 7px 27px!important;
+  border-radius:8px;
+  box-shadow:none;
+}
+html:not(.cloud-auth-gate) body .editor .item-main{
+  gap:6px;
+}
+html:not(.cloud-auth-gate) body .editor .item-main input{
+  min-height:36px;
+  padding:7px 8px;
+}
+html:not(.cloud-auth-gate) body .editor .item-main>.btn.danger{
+  width:35px;
+  min-width:35px;
+  min-height:35px;
+  padding:0;
+  background:#fff7f7;
+  color:#a33a3a;
+}
+html:not(.cloud-auth-gate) body .editor .aua-item-drag-handle{
+  top:9px;
+  left:5px;
+  height:29px;
+  width:16px;
+  border:0;
+  background:transparent;
+  color:#8ba0b9;
+}
+html:not(.cloud-auth-gate) body .editor .aua-item-options{
+  width:35px;
+  height:35px;
+}
+html:not(.cloud-auth-gate) body .editor .aua-item-options>summary{
+  width:35px;
+  height:35px;
+  border-radius:7px;
+  font-size:18px;
+}
+html:not(.cloud-auth-gate) body .editor .item-disc{
+  margin-top:6px;
+  padding-top:6px;
+}
+html:not(.cloud-auth-gate) body .editor .disc{
+  grid-template-columns:minmax(88px,110px) minmax(0,1fr);
+  gap:7px;
+  margin-top:6px;
+}
+
+/* Whole-section pricing is useful but should not dominate each section. */
+html:not(.cloud-auth-gate) body .editor .aua-section-price-box{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(170px,220px);
+  column-gap:12px;
+  align-items:center;
+  margin-top:8px;
+  padding:8px 9px;
+  border-radius:8px;
+  background:#f8fafc;
+}
+html:not(.cloud-auth-gate) body .editor .aua-section-price-box.active{
+  background:#f2f7ff;
+}
+html:not(.cloud-auth-gate) body .editor .aua-section-price-label{
+  margin:0;
+  font-size:10px;
+  letter-spacing:.015em;
+}
+html:not(.cloud-auth-gate) body .editor .aua-section-price-row{
+  margin:0;
+  gap:5px;
+}
+html:not(.cloud-auth-gate) body .editor .aua-section-price-input{
+  min-height:34px!important;
+  padding:6px 8px!important;
+}
+html:not(.cloud-auth-gate) body .editor .aua-section-price-note{
+  display:none;
+}
+
+/* Remarks stays prominent enough to edit, but loses unnecessary vertical bulk. */
+html:not(.cloud-auth-gate) body .editor .aua-remarks-toolbar{
+  margin-bottom:6px;
+  gap:7px;
+}
+html:not(.cloud-auth-gate) body .editor .aua-remarks-toolbar .btn{
+  min-height:30px;
+  padding:5px 9px;
+}
+html:not(.cloud-auth-gate) body .editor .aua-remarks-editor{
+  min-height:92px;
+  padding:9px 10px;
+  border-radius:9px;
+}
+html:not(.cloud-auth-gate) body .editor #auaPrivateSettlementButton{
+  min-height:34px;
+}
+
+/* Advanced actions stay deliberately quiet until opened. */
+html:not(.cloud-auth-gate) body .action-panel.aua-actions-collapsed{
+  margin-bottom:6px!important;
+}
+html:not(.cloud-auth-gate) body #auaActionToggle{
+  min-height:38px;
+  padding:8px 11px;
+}
+
+/* Keep utility/cloud controls secondary to quotation work. */
+html:not(.cloud-auth-gate) body #cloudPanel{
+  margin-bottom:9px;
+  box-shadow:none;
+}
+html:not(.cloud-auth-gate) body #cloudPanel .btn,
+html:not(.cloud-auth-gate) body #cloudPanel button{
+  min-height:32px;
+}
+
+/* Preview remains visually separate without changing anything inside the quotation sheet. */
+@media screen{
+  html:not(.cloud-auth-gate) body .preview-wrap{
+    padding:24px;
+  }
+}
+
+@media(max-width:720px){
+  html:not(.cloud-auth-gate) body .editor .aua-section-price-box{
+    grid-template-columns:1fr;
+    row-gap:6px;
+  }
+  html:not(.cloud-auth-gate) body .editor .item-main{
+    gap:5px;
+  }
+}
+
+@media(max-width:620px){
+  html:not(.cloud-auth-gate) body .editor{
+    padding:10px;
+  }
+  html:not(.cloud-auth-gate) body .editor>.panel:not(#cloudPanel){
+    padding:11px;
+    margin-bottom:8px;
+  }
+  html:not(.cloud-auth-gate) body .editor .section-card{
+    padding:7px;
+  }
+  html:not(.cloud-auth-gate) body .editor .section-head>.btn{
+    width:30px;
+    min-width:30px;
+    min-height:30px;
+  }
+}
+
+@media print{
+  /* Tidy pass is editor-only. */
+}
