@@ -56,6 +56,11 @@
     light.rel='stylesheet';
     light.href='./light-theme-v48.css';
     document.head.appendChild(light);
+    const tidy=document.createElement('link');
+    tidy.id='auaTidyV58';
+    tidy.rel='stylesheet';
+    tidy.href='./tidy-v58.css';
+    document.head.appendChild(tidy);
   }
 
   function addUppercaseFix(){
